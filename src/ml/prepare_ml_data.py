@@ -1,74 +1,157 @@
 import pandas as pd
 import numpy as np
 
-input_file = "data/processed/aws_ml_features.csv"
-output_file = "data/processed/aws_ml_ready.csv"
+train_file = "data/processed/aws_train_raw.csv"
+test_file = "data/processed/aws_test_raw.csv"
 
-df = pd.read_csv(input_file)
+train_output = "data/processed/aws_train_ready.csv"
+test_output = "data/processed/aws_test_ready.csv"
 
-missing_indicator_columns = [
+
+train = pd.read_csv(train_file)
+test = pd.read_csv(test_file)
+
+
+print("Training shape:", train.shape)
+print("Testing shape:", test.shape)
+
+
+# Missing indicators are already meaningful binary features.
+missing_columns = [
     column
-    for column in df.columns
+    for column in train.columns
     if column.endswith("_missing")
 ]
 
-feature_columns = [
+
+continuous_columns = [
     column
-    for column in df.columns
-    if column not in missing_indicator_columns
+    for column in train.columns
+    if column not in missing_columns
 ]
 
-print("Rows:", len(df))
-print("Input features:", len(df.columns))
 
-print("\nMissing indicators:", len(missing_indicator_columns))
-print("Continuous features:", len(feature_columns))
-
-# Replace infinite values with NaN
-df[feature_columns] = df[feature_columns].replace(
-    [np.inf, -np.inf],
-    np.nan
-)
-
-missing_before = df[feature_columns].isna().sum()
-
-print("\nMissing values before imputation:")
 print(
-    missing_before[missing_before > 0]
-    .sort_values(ascending=False)
-    .to_string()
+    "\nMissing indicator features:",
+    len(missing_columns)
 )
 
-# Median imputation
-for column in feature_columns:
+print(
+    "Continuous features:",
+    len(continuous_columns)
+)
 
-    if df[column].isna().any():
 
-        median = df[column].median()
+# Replace infinite values with NaN.
+train[continuous_columns] = (
+    train[continuous_columns]
+    .replace([np.inf, -np.inf], np.nan)
+)
 
-        df[column] = df[column].fillna(median)
+test[continuous_columns] = (
+    test[continuous_columns]
+    .replace([np.inf, -np.inf], np.nan)
+)
+
+
+# Learn medians ONLY from training data.
+train_medians = train[
+    continuous_columns
+].median()
+
+
+# Check whether any feature cannot get a training median.
+missing_medians = train_medians[
+    train_medians.isna()
+]
+
+
+if len(missing_medians) > 0:
+
+    print(
+        "\nFeatures with no training median:"
+    )
+
+    print(
+        missing_medians.index.tolist()
+    )
+
+    raise ValueError(
+        "Cannot safely impute these features."
+    )
+
+
+# Apply training medians to both train and test.
+train[continuous_columns] = (
+    train[continuous_columns]
+    .fillna(train_medians)
+)
+
+test[continuous_columns] = (
+    test[continuous_columns]
+    .fillna(train_medians)
+)
+
 
 # Verify
-remaining_missing = df.isna().sum().sum()
+train_missing = train.isna().sum().sum()
+test_missing = test.isna().sum().sum()
 
-remaining_infinite = np.isinf(
-    df[feature_columns].to_numpy()
+train_infinite = np.isinf(
+    train.to_numpy()
 ).sum()
 
-print("\nMissing values after imputation:")
-print(remaining_missing)
+test_infinite = np.isinf(
+    test.to_numpy()
+).sum()
 
-print("\nInfinite values after imputation:")
-print(remaining_infinite)
 
-print("\nFinal shape:")
-print(df.shape)
+print("\nAfter imputation:")
 
-print("\nFinal feature list:")
+print(
+    "Training missing values:",
+    train_missing
+)
 
-for i, column in enumerate(df.columns, start=1):
-    print(f"{i:3}. {column}")
+print(
+    "Testing missing values:",
+    test_missing
+)
 
-df.to_csv(output_file, index=False)
+print(
+    "Training infinite values:",
+    train_infinite
+)
 
-print("\nSaved:", output_file)
+print(
+    "Testing infinite values:",
+    test_infinite
+)
+
+
+if (
+    train_missing > 0
+    or test_missing > 0
+    or train_infinite > 0
+    or test_infinite > 0
+):
+
+    raise ValueError(
+        "ML data still contains invalid values."
+    )
+
+
+train.to_csv(
+    train_output,
+    index=False
+)
+
+test.to_csv(
+    test_output,
+    index=False
+)
+
+
+print("\nSaved:")
+print(train_output)
+print(test_output)
