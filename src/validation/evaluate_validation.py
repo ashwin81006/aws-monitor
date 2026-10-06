@@ -118,11 +118,13 @@ def evaluate_validation(model_name="Isolation Forest"):
         ]
 
         if len(overlap_events) > 0:
-            det_class = overlap_events.iloc[0]["candidate_class"]
-            det_cause = overlap_events.iloc[0]["probable_root_cause"]
-            det_sev = overlap_events.iloc[0]["severity"]
-            det_conf = overlap_events.iloc[0]["confidence"]
+            primary_event = overlap_events.sort_values(by=["observations", "peak_fused_score"], ascending=False).iloc[0]
+            det_class = primary_event["candidate_class"]
+            det_cause = primary_event["probable_root_cause"]
+            det_sev = primary_event["severity"]
+            det_conf = primary_event["confidence"]
             matched_eids = ",".join(overlap_events["event_id"].astype(str).tolist())
+
         else:
             det_class = "NOT_DETECTED"
             det_cause = "NONE"

@@ -142,33 +142,27 @@ df["rule_rainfall_suspicious"] = (
 # Frozen sensor evidence
 # -------------------------------------------------
 
-temp_repeat_cols = [
-    col for col in df.columns if col.startswith("AIR_TEMPERATURE") and col.endswith("_repeat_duration_minutes")
-]
-rh_repeat_cols = [
-    col for col in df.columns if col.startswith("RELATIVE_HUMIDITY") and col.endswith("_repeat_duration_minutes")
-]
+gap_series = df["time_gap_minutes"] if "time_gap_minutes" in df.columns else df["timestamp"].diff().dt.total_seconds() / 60.0
 
-if temp_repeat_cols and rh_repeat_cols:
-    spread_temp = df["temperature_spread"].fillna(0) if "temperature_spread" in df.columns else 0
-    spread_rh = df["humidity_spread"].fillna(0) if "humidity_spread" in df.columns else 0
+def is_series_frozen(series, min_minutes=180, exclude_val=None):
+    valid = series.notna() & (series != -40)
+    if exclude_val is not None:
+        valid &= (series != exclude_val)
+    same = (series == series.shift(1)) & valid & (gap_series <= 60)
+    streak_count = same.groupby((~same).cumsum()).cumsum()
+    return streak_count * 30 >= min_minutes
 
-    df["rule_temperature_frozen"] = (
-        ((df[temp_repeat_cols] >= 180).any(axis=1))
-        | ((df[temp_repeat_cols] >= 120).any(axis=1) & (spread_temp > 0.3))
-    ).astype(int)
+temp_frozen_masks = [is_series_frozen(df[c], min_minutes=120) for c in temp_columns if c in df.columns]
+rh_frozen_masks = [is_series_frozen(df[c], min_minutes=120, exclude_val=100.0) for c in rh_columns if c in df.columns]
 
-    df["rule_rh_frozen"] = (
-        ((df[rh_repeat_cols] >= 180).any(axis=1))
-        | ((df[rh_repeat_cols] >= 120).any(axis=1) & (spread_rh > 2.0))
-    ).astype(int)
-else:
-    df["rule_temperature_frozen"] = 0
-    df["rule_rh_frozen"] = 0
+
+df["rule_temperature_frozen"] = (pd.concat(temp_frozen_masks, axis=1).any(axis=1)).astype(int) if temp_frozen_masks else 0
+df["rule_rh_frozen"] = (pd.concat(rh_frozen_masks, axis=1).any(axis=1)).astype(int) if rh_frozen_masks else 0
 
 df["rule_sensor_frozen"] = (
     (df["rule_temperature_frozen"] == 1) | (df["rule_rh_frozen"] == 1)
 ).astype(int)
+
 
 
 # -------------------------------------------------

@@ -137,6 +137,32 @@ df["quality_issue"] = (
 ).astype(int)
 
 # --------------------------------------------------
+# Canonical Column Aliases
+# --------------------------------------------------
+
+COLUMN_MAP = {
+    "temp_2m": "AIR_TEMPERATURE1(°C at 2m height)",
+    "temp_4m": "AIR_TEMPERATURE2(°C at 4m height)",
+    "temp_8m": "AIR_TEMPERATURE3(°C at 8m height)",
+    "rh_2m": "RELATIVE_HUMIDITY1(% at 2m height)",
+    "rh_4m": "RELATIVE_HUMIDITY2(% at 4m height)",
+    "rh_8m": "RELATIVE_HUMIDITY3(% at 8m height)",
+    "wind_speed_3m": "WIND_SPEED1(m/s at 3m height) ",
+    "wind_speed_6m": "WIND_SPEED2(m/s at 6m height)",
+    "wind_speed_10m": "WIND_SPEED3(m/s at 10m height)",
+    "wind_dir_3m": "WIND_DIRECTION1(deg at 3m height)",
+    "wind_dir_6m": "WIND_DIRECTION2(deg at 6m height)",
+    "wind_dir_10m": "WIND_DIRECTION3(deg at 10m height)",
+    "pressure": "ATMOSPHERIC_PRESSURE(mbar) ",
+    "battery_voltage": "BATTRY_VOLTAGE(V)",
+    "rainfall": "RAINFALL(mm)",
+}
+
+for alias, raw_col in COLUMN_MAP.items():
+    if raw_col in df.columns:
+        df[alias] = pd.to_numeric(df[raw_col], errors="coerce")
+
+# --------------------------------------------------
 # Save
 # --------------------------------------------------
 
@@ -146,4 +172,4 @@ print("Rows:", len(df))
 print("Columns:", len(df.columns))
 print("Quality issue rows:", df["quality_issue"].sum())
 print("Large time gaps:", df["large_time_gap"].sum())
-print("Saved:", output_file)
+print("Saved:", output_file)

@@ -1,390 +1,142 @@
-import pandas as pd
+import os
 import numpy as np
+import pandas as pd
+
+# ==============================================================================
+# FEATURE ENGINEERING: CLEAN 31 DOMAIN-SPECIFIC METEOROLOGICAL FEATURES
+# ==============================================================================
+# 1. 10 Base Physical Channels (temp 2m/4m/8m, rh 2m/4m/8m, pressure, battery, wind, rain)
+# 2. 6 Vertical Tower Gradients (boundary-layer thermodynamics across 2m, 4m, 8m)
+# 3. 8 Temporal 30-min Rates of Change (step dynamics & jump detection)
+# 4. 5 Robust Rolling Dispersion Deviations (normalized by MAD over 4.5h window)
+# 5. 2 Diurnal Solar Harmonics (sin/cos of hour of day)
+# ==============================================================================
 
 input_file = "data/processed/aws_clean.csv"
 output_file = "data/processed/aws_features.csv"
 
 df = pd.read_csv(input_file)
-
 df["timestamp"] = pd.to_datetime(df["timestamp"])
 df = df.sort_values("timestamp").reset_index(drop=True)
 
-sensor_columns = [
-    "AIR_TEMPERATURE1(°C at 2m height)",
-    "AIR_TEMPERATURE2(°C at 4m height)",
-    "AIR_TEMPERATURE3(°C at 8m height)",
-    "RELATIVE_HUMIDITY1(% at 2m height)",
-    "RELATIVE_HUMIDITY2(% at 4m height)",
-    "RELATIVE_HUMIDITY3(% at 8m height)",
-    "WIND_SPEED1(m/s at 3m height) ",
-    "WIND_SPEED2(m/s at 6m height)",
-    "WIND_SPEED3(m/s at 10m height)",
-    "ATMOSPHERIC_PRESSURE(mbar) ",
-    "BATTRY_VOLTAGE(V)"
+# Ensure canonical column names are present
+COLUMN_MAP = {
+    "temp_2m": "AIR_TEMPERATURE1(°C at 2m height)",
+    "temp_4m": "AIR_TEMPERATURE2(°C at 4m height)",
+    "temp_8m": "AIR_TEMPERATURE3(°C at 8m height)",
+    "rh_2m": "RELATIVE_HUMIDITY1(% at 2m height)",
+    "rh_4m": "RELATIVE_HUMIDITY2(% at 4m height)",
+    "rh_8m": "RELATIVE_HUMIDITY3(% at 8m height)",
+    "wind_speed_3m": "WIND_SPEED1(m/s at 3m height) ",
+    "wind_speed_6m": "WIND_SPEED2(m/s at 6m height)",
+    "wind_speed_10m": "WIND_SPEED3(m/s at 10m height)",
+    "wind_dir_3m": "WIND_DIRECTION1(deg at 3m height)",
+    "wind_dir_6m": "WIND_DIRECTION2(deg at 6m height)",
+    "wind_dir_10m": "WIND_DIRECTION3(deg at 10m height)",
+    "pressure": "ATMOSPHERIC_PRESSURE(mbar) ",
+    "battery_voltage": "BATTRY_VOLTAGE(V)",
+    "rainfall": "RAINFALL(mm)",
+}
+
+for alias, raw_col in COLUMN_MAP.items():
+    if alias not in df.columns and raw_col in df.columns:
+        df[alias] = pd.to_numeric(df[raw_col], errors="coerce")
+
+# Ensure time_gap_minutes exists
+if "time_gap_minutes" not in df.columns:
+    df["time_gap_minutes"] = df["timestamp"].diff().dt.total_seconds() / 60.0
+
+# ------------------------------------------------------------------------------
+# 1. BASE MONITORED CHANNELS (10 features)
+# ------------------------------------------------------------------------------
+base_features = [
+    "temp_2m", "temp_4m", "temp_8m",
+    "rh_2m", "rh_4m", "rh_8m",
+    "pressure", "battery_voltage", "wind_speed_10m", "rainfall"
 ]
 
-temperature_columns = [
-    "AIR_TEMPERATURE1(°C at 2m height)",
-    "AIR_TEMPERATURE2(°C at 4m height)",
-    "AIR_TEMPERATURE3(°C at 8m height)"
+# ------------------------------------------------------------------------------
+# 2. VERTICAL TOWER GRADIENTS (6 features)
+# ------------------------------------------------------------------------------
+df["diff_temp_2m_4m"] = df["temp_2m"] - df["temp_4m"]
+df["diff_temp_4m_8m"] = df["temp_4m"] - df["temp_8m"]
+df["diff_temp_2m_8m"] = df["temp_2m"] - df["temp_8m"]
+
+df["diff_rh_2m_4m"] = df["rh_2m"] - df["rh_4m"]
+df["diff_rh_4m_8m"] = df["rh_4m"] - df["rh_8m"]
+df["diff_rh_2m_8m"] = df["rh_2m"] - df["rh_8m"]
+
+gradient_features = [
+    "diff_temp_2m_4m", "diff_temp_4m_8m", "diff_temp_2m_8m",
+    "diff_rh_2m_4m", "diff_rh_4m_8m", "diff_rh_2m_8m"
 ]
 
-humidity_columns = [
-    "RELATIVE_HUMIDITY1(% at 2m height)",
-    "RELATIVE_HUMIDITY2(% at 4m height)",
-    "RELATIVE_HUMIDITY3(% at 8m height)"
+# ------------------------------------------------------------------------------
+# 3. TEMPORAL 30-MIN RATES OF CHANGE (8 features)
+# ------------------------------------------------------------------------------
+continuous_mask = (df["time_gap_minutes"] <= 60.0) & (df["time_gap_minutes"] > 0)
+rate_cols = [
+    ("rate_temp_2m", "temp_2m"),
+    ("rate_temp_4m", "temp_4m"),
+    ("rate_temp_8m", "temp_8m"),
+    ("rate_rh_2m", "rh_2m"),
+    ("rate_rh_4m", "rh_4m"),
+    ("rate_rh_8m", "rh_8m"),
+    ("rate_pressure", "pressure"),
+    ("rate_battery", "battery_voltage"),
 ]
 
-
-# ==================================================
-# TEMPORAL FEATURES
-# ==================================================
-
-for column in sensor_columns:
-
-    name = column.split("(")[0].strip()
-    name = name.replace(" ", "_").replace("%", "pct")
-
-    previous = df[column].shift(1)
-
-    previous_valid = previous.notna()
-    current_valid = df[column].notna()
-
-    if column in temperature_columns:
-        previous_valid &= previous != -40
-        current_valid &= df[column] != -40
-
-    if column in humidity_columns:
-        previous_valid &= (previous >= 0) & (previous <= 100)
-        current_valid &= (df[column] >= 0) & (df[column] <= 100)
-
-    continuous = (
-        df["time_gap_minutes"] <= 60
-    )
-
-    valid_pair = (
-        previous_valid &
-        current_valid &
-        continuous
-    )
-
-    df[name + "_previous"] = previous
-
-    df[name + "_change"] = np.where(
-        valid_pair,
-        df[column] - previous,
-        np.nan
-    )
-
-    df[name + "_rate"] = np.where(
-        valid_pair,
-        df[name + "_change"] /
-        (df["time_gap_minutes"] / 60),
-        np.nan
-    )
-
-
-# ==================================================
-# CROSS-SENSOR FEATURES
-# ==================================================
-
-temperature_valid = df[temperature_columns].replace(
-    -40,
-    np.nan
-)
-
-humidity_valid = df[humidity_columns].where(
-    (df[humidity_columns] >= 0) &
-    (df[humidity_columns] <= 100)
-)
-
-df["temperature_valid_count"] = (
-    temperature_valid.notna().sum(axis=1)
-)
-
-df["humidity_valid_count"] = (
-    humidity_valid.notna().sum(axis=1)
-)
-
-df["temperature_mean"] = (
-    temperature_valid.mean(axis=1)
-)
-
-df["temperature_spread"] = np.where(
-    df["temperature_valid_count"] >= 2,
-    temperature_valid.max(axis=1) -
-    temperature_valid.min(axis=1),
-    np.nan
-)
-
-for column in temperature_columns:
-
-    name = column.split("(")[0].strip()
-    name = name.replace(" ", "_")
-
-    df[name + "_deviation"] = (
-        df[column] -
-        df["temperature_mean"]
-    )
-
-    invalid = (
-        (df[column] == -40) |
-        (df["temperature_valid_count"] < 2)
-    )
-
-    df.loc[
-        invalid,
-        name + "_deviation"
-    ] = np.nan
-
-
-df["humidity_mean"] = (
-    humidity_valid.mean(axis=1)
-)
-
-df["humidity_spread"] = np.where(
-    df["humidity_valid_count"] >= 2,
-    humidity_valid.max(axis=1) -
-    humidity_valid.min(axis=1),
-    np.nan
-)
-
-for column in humidity_columns:
-
-    name = column.split("(")[0].strip()
-    name = name.replace(" ", "_")
-
-    df[name + "_deviation"] = (
-        df[column] -
-        df["humidity_mean"]
-    )
-
-    invalid = (
-        (df[column] < 0) |
-        (df[column] > 100) |
-        (df["humidity_valid_count"] < 2)
-    )
-
-    df.loc[
-        invalid,
-        name + "_deviation"
-    ] = np.nan
-
-
-# ==================================================
-# ROLLING FEATURES
-# ==================================================
-
-continuous_segment = (df["time_gap_minutes"] > 60).cumsum()
-
-for column in sensor_columns:
-
-    name = column.split("(")[0].strip()
-    name = name.replace(" ", "_")
-
-    series = df[column].copy()
-
-    if column in temperature_columns:
-        series = series.mask(series == -40)
-
-    if column in humidity_columns:
-        series = series.mask(
-            (series < 0) |
-            (series > 100)
-        )
-
-    rolling = series.groupby(continuous_segment).rolling(
-        window=5,
-        min_periods=2,
-        closed="left"
-    )
-
-    df[name + "_rolling_mean"] = rolling.mean().reset_index(level=0, drop=True)
-    df[name + "_rolling_std"] = rolling.std().reset_index(level=0, drop=True)
-
-
-# ==================================================
-# REPETITION FEATURES
-# ==================================================
-
-for column in sensor_columns:
-
-    name = column.split("(")[0].strip()
-    name = name.replace(" ", "_")
-
-    current = df[column]
-    previous = current.shift(1)
-
-    valid_current = current.notna()
-    valid_previous = previous.notna()
-
-    if column in temperature_columns:
-        valid_current &= current != -40
-        valid_previous &= previous != -40
-
-    if column in humidity_columns:
-        valid_current &= (
-            (current >= 0) &
-            (current <= 100)
-        )
-        valid_previous &= (
-            (previous >= 0) &
-            (previous <= 100)
-        )
-
-    continuous = (
-        df["time_gap_minutes"] <= 60
-    )
-
-    same = (
-        valid_current &
-        valid_previous &
-        continuous &
-        (current == previous)
-    )
-
-    df[name + "_same_as_previous"] = (
-        same.astype(int)
-    )
-
-    group = (~same).cumsum()
-
-    df[name + "_repeat_count"] = (
-        same.groupby(group).cumsum()
-    )
-
-    df.loc[
-        ~valid_current,
-        name + "_repeat_count"
-    ] = 0
-
-
-# ==================================================
-# REPEAT DURATION FEATURES
-# ==================================================
-
-for column in sensor_columns:
-
-    name = column.split("(")[0].strip()
-    name = name.replace(" ", "_")
-
-    current = df[column]
-    previous = current.shift(1)
-
-    valid_current = current.notna()
-    valid_previous = previous.notna()
-
-    if column in temperature_columns:
-        valid_current &= current != -40
-        valid_previous &= previous != -40
-
-    if column in humidity_columns:
-        valid_current &= (
-            (current >= 0) &
-            (current <= 100)
-        )
-        valid_previous &= (
-            (previous >= 0) &
-            (previous <= 100)
-        )
-
-    continuous = (
-        df["time_gap_minutes"] <= 60
-    )
-
-    same = (
-        valid_current &
-        valid_previous &
-        continuous &
-        (current == previous)
-    )
-
-    start_time = df["timestamp"].where(
-        ~same
-    ).ffill()
-
-    duration = (
-        df["timestamp"] -
-        start_time
-    ).dt.total_seconds() / 60
-
-    df[name + "_repeat_duration_minutes"] = np.where(
-        same,
-        duration,
-        0
-    )
-
-
-# ==================================================
-# SUMMARY
-# ==================================================
-temporal_features = [
-    column
-    for column in df.columns
-    if column.endswith("_change")
-    or column.endswith("_rate")
+rate_features = []
+for rate_name, base_col in rate_cols:
+    diff_val = df[base_col].diff()
+    # Normalize rate to per-30-minute interval
+    rate = np.where(continuous_mask, diff_val / (df["time_gap_minutes"] / 30.0), np.nan)
+    df[rate_name] = rate
+    rate_features.append(rate_name)
+
+# ------------------------------------------------------------------------------
+# 4. ROBUST ROLLING DEVIATIONS (5 features)
+# Window = 9 steps (4.5 hours centered)
+# ------------------------------------------------------------------------------
+dev_cols = [
+    ("dev_temp_2m", "temp_2m"),
+    ("dev_temp_4m", "temp_4m"),
+    ("dev_temp_8m", "temp_8m"),
+    ("dev_rh_2m", "rh_2m"),
+    ("dev_pressure", "pressure"),
 ]
 
-temporal_helper_features = [
-    column
-    for column in df.columns
-    if column.endswith("_previous")
-]
+dispersion_features = []
+window_size = 9
+for dev_name, base_col in dev_cols:
+    med = df[base_col].rolling(window=window_size, min_periods=3, center=True).median()
+    abs_dev = np.abs(df[base_col] - med)
+    mad = abs_dev.rolling(window=window_size, min_periods=3, center=True).median() * 1.4826
+    # Robust z-score deviation
+    df[dev_name] = np.where(mad > 1e-4, abs_dev / mad, abs_dev)
+    dispersion_features.append(dev_name)
 
-cross_sensor_features = [
-    "temperature_valid_count",
-    "temperature_mean",
-    "temperature_spread",
-    "humidity_valid_count",
-    "humidity_mean",
-    "humidity_spread"
-]
+# ------------------------------------------------------------------------------
+# 5. DIURNAL SOLAR HARMONICS (2 features)
+# ------------------------------------------------------------------------------
+hours = df["timestamp"].dt.hour + df["timestamp"].dt.minute / 60.0
+df["solar_diurnal_sin"] = np.sin(2 * np.pi * hours / 24.0)
+df["solar_diurnal_cos"] = np.cos(2 * np.pi * hours / 24.0)
+diurnal_features = ["solar_diurnal_sin", "solar_diurnal_cos"]
 
-cross_sensor_features += [
-    column
-    for column in df.columns
-    if column.endswith("_deviation")
-]
-
-rolling_features = [
-    column
-    for column in df.columns
-    if column.endswith("_rolling_mean")
-    or column.endswith("_rolling_std")
-]
-
-repetition_features = [
-    column
-    for column in df.columns
-    if column.endswith("_same_as_previous")
-    or column.endswith("_repeat_count")
-    or column.endswith("_repeat_duration_minutes")
-]
-
-generated_features = (
-    temporal_features +
-    temporal_helper_features +
-    cross_sensor_features +
-    rolling_features +
-    repetition_features
+# Total clean ML feature set: 10 + 6 + 8 + 5 + 2 = 31 features
+ML_31_FEATURES = (
+    base_features
+    + gradient_features
+    + rate_features
+    + dispersion_features
+    + diurnal_features
 )
 
-generated_features = list(dict.fromkeys(generated_features))
+print(f"Engineered {len(ML_31_FEATURES)} clean domain-specific ML features:")
+for i, f in enumerate(ML_31_FEATURES, 1):
+    print(f"  [{i:02d}] {f}")
 
-print("Rows:", len(df))
-print("Columns:", len(df.columns))
-
-print("\nFeature groups:")
-print("Temporal:", len(temporal_features))
-print("Temporal helpers:", len(temporal_helper_features))
-print("Cross-sensor:", len(cross_sensor_features))
-print("Rolling:", len(rolling_features))
-print("Repetition:", len(repetition_features))
-
-print("\nUnique generated features:")
-print(len(generated_features))
-
-print("\nSaved:", output_file)
-
-df = df.copy()
+# Save features dataset
 df.to_csv(output_file, index=False)
+print(f"\nSaved feature dataset: {output_file} (Rows: {len(df)}, Cols: {len(df.columns)})")

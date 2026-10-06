@@ -6,14 +6,13 @@ import numpy as np
 from sklearn.preprocessing import RobustScaler
 
 # ==============================================================================
-# ML DATA PREPARATION PIPELINE
+# ML DATA PREPARATION PIPELINE (31 CLEAN DOMAIN FEATURES)
 # ==============================================================================
-# 1. Selects the 112 machine learning features from engineered features.
-# 2. Generates missingness indicators for raw sensor channels.
-# 3. Performs strict chronological 70/30 train/test split.
-# 4. Imputes continuous missing/infinite values using ONLY training medians.
-# 5. Fits RobustScaler on continuous training features and transforms train & test.
-# 6. Serializes scaler and outputs standardized scaled train/test datasets.
+# 1. Selects the 31 clean domain-specific meteorological features.
+# 2. Performs strict chronological 70/30 train/test split.
+# 3. Imputes missing/infinite values using ONLY training medians (leakage prevention).
+# 4. Fits RobustScaler on training features and transforms train & test sets.
+# 5. Serializes scaler, medians, feature list, and scaled train/test datasets.
 # ==============================================================================
 
 INPUT_FEATURES_FILE = "data/processed/aws_features.csv"
@@ -23,132 +22,102 @@ SCALER_OUT = "models/scaler.pkl"
 MEDIANS_OUT = "models/train_medians.pkl"
 FEATURE_COLS_OUT = "models/ml_feature_columns.json"
 
+ML_31_FEATURES = [
+    # 1. Base monitored channels (10)
+    "temp_2m", "temp_4m", "temp_8m",
+    "rh_2m", "rh_4m", "rh_8m",
+    "pressure", "battery_voltage", "wind_speed_10m", "rainfall",
+
+    # 2. Multi-height vertical gradients (6)
+    "diff_temp_2m_4m", "diff_temp_4m_8m", "diff_temp_2m_8m",
+    "diff_rh_2m_4m", "diff_rh_4m_8m", "diff_rh_2m_8m",
+
+    # 3. Temporal 30-min rates of change (8)
+    "rate_temp_2m", "rate_temp_4m", "rate_temp_8m",
+    "rate_rh_2m", "rate_rh_4m", "rate_rh_8m",
+    "rate_pressure", "rate_battery",
+
+    # 4. Robust rolling dispersion deviations (5)
+    "dev_temp_2m", "dev_temp_4m", "dev_temp_8m",
+    "dev_rh_2m", "dev_pressure",
+
+    # 5. Diurnal solar harmonics (2)
+    "solar_diurnal_sin", "solar_diurnal_cos",
+]
+
 
 def prepare_ml_data():
     print("=" * 60)
-    print("           PREPARING MACHINE LEARNING DATA")
+    print("      PREPARING MACHINE LEARNING DATA (31 CLEAN FEATURES)")
     print("=" * 60)
 
     print("\n[1/4] Loading engineered features...")
     df = pd.read_csv(INPUT_FEATURES_FILE)
     print(f"Loaded: {INPUT_FEATURES_FILE} ({len(df)} rows, {df.shape[1]} columns)")
 
-    # --------------------------------------------------
-    # 1. Feature Selection
-    # --------------------------------------------------
-    print("\n[2/4] Selecting ML feature groups...")
-    base_features = ["time_gap_minutes"]
+    # Select the 31 clean features
+    print("\n[2/4] Validating 31 domain feature set...")
+    missing_features = [f for f in ML_31_FEATURES if f not in df.columns]
+    if missing_features:
+        raise ValueError(f"Missing required features in {INPUT_FEATURES_FILE}: {missing_features}")
 
-    raw_features = [
-        "AIR_TEMPERATURE1(°C at 2m height)",
-        "AIR_TEMPERATURE2(°C at 4m height)",
-        "AIR_TEMPERATURE3(°C at 8m height)",
-        "RELATIVE_HUMIDITY1(% at 2m height)",
-        "RELATIVE_HUMIDITY2(% at 4m height)",
-        "RELATIVE_HUMIDITY3(% at 8m height)",
-        "WIND_SPEED1(m/s at 3m height) ",
-        "WIND_SPEED2(m/s at 6m height)",
-        "WIND_SPEED3(m/s at 10m height)",
-        "ATMOSPHERIC_PRESSURE(mbar) ",
-        "BATTRY_VOLTAGE(V)"
-    ]
-
-    temporal_features = [
-        c for c in df.columns
-        if c.endswith("_change")
-        or c.endswith("_rate")
-        or c.endswith("_rolling_mean")
-        or c.endswith("_rolling_std")
-    ]
-
-    cross_sensor_features = [
-        "temperature_valid_count",
-        "temperature_mean",
-        "temperature_spread",
-        "humidity_valid_count",
-        "humidity_mean",
-        "humidity_spread"
-    ] + [c for c in df.columns if c.endswith("_deviation")]
-
-    repetition_features = [
-        c for c in df.columns
-        if c.endswith("_same_as_previous")
-        or c.endswith("_repeat_count")
-        or c.endswith("_repeat_duration_minutes")
-    ]
-
-    feature_columns = list(dict.fromkeys(
-        base_features + raw_features + temporal_features + cross_sensor_features + repetition_features
-    ))
-    ml_df = df[feature_columns].copy()
-
-    # Missingness indicators
-    missing_columns = []
-    for col in raw_features:
-        name = col.split("(")[0].strip().replace(" ", "_") + "_missing"
-        ml_df[name] = df[col].isna().astype(int)
-        missing_columns.append(name)
-
-    continuous_columns = [c for c in ml_df.columns if c not in missing_columns]
-    print(f"  Total ML features   : {ml_df.shape[1]}")
-    print(f"  Continuous features : {len(continuous_columns)}")
-    print(f"  Missing indicators  : {len(missing_columns)}")
+    ml_df = df[ML_31_FEATURES].copy()
+    print(f"  Selected features: {len(ML_31_FEATURES)}")
 
     # --------------------------------------------------
-    # 2. Chronological 70/30 Split
+    # Chronological 70/30 Train/Test Split
     # --------------------------------------------------
     print("\n[3/4] Performing chronological 70/30 train/test split...")
-    split_index = int(len(ml_df) * 0.70)
-    train = ml_df.iloc[:split_index].copy().reset_index(drop=True)
-    test = ml_df.iloc[split_index:].copy().reset_index(drop=True)
-    print(f"  Training observations: {len(train)} (70%)")
-    print(f"  Testing observations : {len(test)} (30%)")
+    split_idx = int(len(ml_df) * 0.70)
+    train_df = ml_df.iloc[:split_idx].copy()
+    test_df = ml_df.iloc[split_idx:].copy()
+
+    print(f"  Train set: {len(train_df)} rows ({len(train_df)/len(ml_df):.1%})")
+    print(f"  Test set : {len(test_df)} rows ({len(test_df)/len(ml_df):.1%})")
+
+    # Replace inf with nan
+    train_df = train_df.replace([np.inf, -np.inf], np.nan)
+    test_df = test_df.replace([np.inf, -np.inf], np.nan)
+
+    # Compute training medians
+    train_medians = train_df.median().fillna(0.0)
+    train_df = train_df.fillna(train_medians)
+    test_df = test_df.fillna(train_medians)
 
     # --------------------------------------------------
-    # 3. Imputation (Using ONLY Training Medians)
+    # RobustScaler Fit & Transform
     # --------------------------------------------------
-    # Replace inf with NaN
-    train[continuous_columns] = train[continuous_columns].replace([np.inf, -np.inf], np.nan)
-    test[continuous_columns] = test[continuous_columns].replace([np.inf, -np.inf], np.nan)
-
-    # Calculate medians strictly on training split
-    train_medians = train[continuous_columns].median()
-    train[continuous_columns] = train[continuous_columns].fillna(train_medians)
-    test[continuous_columns] = test[continuous_columns].fillna(train_medians)
-
-    # --------------------------------------------------
-    # 4. Robust Scaling (Fitted ONLY on Training Split)
-    # --------------------------------------------------
-    print("\n[4/4] Fitting RobustScaler and transforming features...")
+    print("\n[4/4] Fitting RobustScaler and transforming...")
     scaler = RobustScaler()
-    scaler.fit(train[continuous_columns])
+    train_scaled = pd.DataFrame(
+        scaler.fit_transform(train_df),
+        columns=ML_31_FEATURES,
+        index=train_df.index
+    )
+    test_scaled = pd.DataFrame(
+        scaler.transform(test_df),
+        columns=ML_31_FEATURES,
+        index=test_df.index
+    )
 
-    train_scaled = train.copy()
-    test_scaled = test.copy()
-    train_scaled[continuous_columns] = scaler.transform(train[continuous_columns])
-    test_scaled[continuous_columns] = scaler.transform(test[continuous_columns])
-
-    # Save artifacts
+    # Serialize artifacts
     os.makedirs("models", exist_ok=True)
     os.makedirs("data/processed", exist_ok=True)
 
     joblib.dump(scaler, SCALER_OUT)
     joblib.dump(train_medians, MEDIANS_OUT)
     with open(FEATURE_COLS_OUT, "w") as f:
-        json.dump(list(train.columns), f, indent=2)
+        json.dump(ML_31_FEATURES, f, indent=2)
 
     train_scaled.to_csv(TRAIN_SCALED_OUT, index=False)
     test_scaled.to_csv(TEST_SCALED_OUT, index=False)
 
-    print("\nSaved artifacts:")
-    print(f"  Scaler        : {SCALER_OUT}")
-    print(f"  Train Medians : {MEDIANS_OUT}")
-    print(f"  Feature Cols  : {FEATURE_COLS_OUT}")
-    print(f"  Train Scaled  : {TRAIN_SCALED_OUT} ({train_scaled.shape})")
-    print(f"  Test Scaled   : {TEST_SCALED_OUT} ({test_scaled.shape})")
-    print("=" * 60)
-    print("         ML DATA PREPARATION COMPLETE")
-    print("=" * 60)
+    print(f"  Saved Scaler:        {SCALER_OUT}")
+    print(f"  Saved Medians:       {MEDIANS_OUT}")
+    print(f"  Saved Feature List:  {FEATURE_COLS_OUT}")
+    print(f"  Saved Train Scaled:  {TRAIN_SCALED_OUT} ({train_scaled.shape})")
+    print(f"  Saved Test Scaled:   {TEST_SCALED_OUT} ({test_scaled.shape})")
+    print("\nML Data Preparation Complete!")
 
 
 if __name__ == "__main__":

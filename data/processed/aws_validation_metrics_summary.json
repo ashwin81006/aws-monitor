@@ -10,25 +10,25 @@
     },
     "benchmark_window_level": {
         "window_observations": 289,
-        "true_positives": 17,
-        "false_positives": 26,
-        "true_negatives": 229,
-        "false_negatives": 17,
-        "precision": 0.3953,
-        "recall": 0.5,
-        "f1_score": 0.4416
+        "true_positives": 18,
+        "false_positives": 29,
+        "true_negatives": 226,
+        "false_negatives": 16,
+        "precision": 0.383,
+        "recall": 0.5294,
+        "f1_score": 0.4444
     },
     "raw_full_testset_level": {
         "total_test_observations": 7143,
-        "true_positives": 17,
-        "false_positives": 1796,
-        "true_negatives": 5313,
-        "false_negatives": 17,
-        "accuracy": 0.7462,
-        "precision": 0.0094,
-        "recall": 0.5,
-        "f1_score": 0.0184,
-        "specificity": 0.7474
+        "true_positives": 18,
+        "false_positives": 1874,
+        "true_negatives": 5235,
+        "false_negatives": 16,
+        "accuracy": 0.7354,
+        "precision": 0.0095,
+        "recall": 0.5294,
+        "f1_score": 0.0187,
+        "specificity": 0.7364
     },
     "model_name": "Isolation Forest"
 }

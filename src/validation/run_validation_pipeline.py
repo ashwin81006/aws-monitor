@@ -24,156 +24,91 @@ def run_validation_pipeline(model_name="isolation_forest"):
     print("=" * 60)
 
     # ----------------------------------------------------
-    # 1. Feature Engineering
+    # 1. Feature Engineering (31 Clean Domain Features)
     # ----------------------------------------------------
-    print("\n[1/6] Building features on fault-injected dataset...")
+    print("\n[1/6] Building 31 clean domain features on fault-injected dataset...")
     df = pd.read_csv(FAULTY_CLEAN)
     df["timestamp"] = pd.to_datetime(df["timestamp"])
     df = df.sort_values("timestamp").reset_index(drop=True)
 
-    sensor_columns = [
-        "AIR_TEMPERATURE1(°C at 2m height)",
-        "AIR_TEMPERATURE2(°C at 4m height)",
-        "AIR_TEMPERATURE3(°C at 8m height)",
-        "RELATIVE_HUMIDITY1(% at 2m height)",
-        "RELATIVE_HUMIDITY2(% at 4m height)",
-        "RELATIVE_HUMIDITY3(% at 8m height)",
-        "WIND_SPEED1(m/s at 3m height) ",
-        "WIND_SPEED2(m/s at 6m height)",
-        "WIND_SPEED3(m/s at 10m height)",
-        "ATMOSPHERIC_PRESSURE(mbar) ",
-        "BATTRY_VOLTAGE(V)"
-    ]
-    temperature_columns = sensor_columns[0:3]
-    humidity_columns = sensor_columns[3:6]
+    COLUMN_MAP = {
+        "temp_2m": "AIR_TEMPERATURE1(°C at 2m height)",
+        "temp_4m": "AIR_TEMPERATURE2(°C at 4m height)",
+        "temp_8m": "AIR_TEMPERATURE3(°C at 8m height)",
+        "rh_2m": "RELATIVE_HUMIDITY1(% at 2m height)",
+        "rh_4m": "RELATIVE_HUMIDITY2(% at 4m height)",
+        "rh_8m": "RELATIVE_HUMIDITY3(% at 8m height)",
+        "wind_speed_3m": "WIND_SPEED1(m/s at 3m height) ",
+        "wind_speed_6m": "WIND_SPEED2(m/s at 6m height)",
+        "wind_speed_10m": "WIND_SPEED3(m/s at 10m height)",
+        "wind_dir_3m": "WIND_DIRECTION1(deg at 3m height)",
+        "wind_dir_6m": "WIND_DIRECTION2(deg at 6m height)",
+        "wind_dir_10m": "WIND_DIRECTION3(deg at 10m height)",
+        "pressure": "ATMOSPHERIC_PRESSURE(mbar) ",
+        "battery_voltage": "BATTRY_VOLTAGE(V)",
+        "rainfall": "RAINFALL(mm)",
+    }
+    for alias, raw_col in COLUMN_MAP.items():
+        if alias not in df.columns and raw_col in df.columns:
+            df[alias] = pd.to_numeric(df[raw_col], errors="coerce")
 
-    # Temporal features
-    for column in sensor_columns:
-        name = column.split("(")[0].strip().replace(" ", "_").replace("%", "pct")
-        previous = df[column].shift(1)
-        prev_valid = previous.notna()
-        curr_valid = df[column].notna()
+    if "time_gap_minutes" not in df.columns:
+        df["time_gap_minutes"] = df["timestamp"].diff().dt.total_seconds() / 60.0
 
-        if column in temperature_columns:
-            prev_valid &= previous != -40
-            curr_valid &= df[column] != -40
-        if column in humidity_columns:
-            prev_valid &= (previous >= 0) & (previous <= 100)
-            curr_valid &= (df[column] >= 0) & (df[column] <= 100)
+    # 1. Base (10)
+    # 2. Vertical gradients (6)
+    df["diff_temp_2m_4m"] = df["temp_2m"] - df["temp_4m"]
+    df["diff_temp_4m_8m"] = df["temp_4m"] - df["temp_8m"]
+    df["diff_temp_2m_8m"] = df["temp_2m"] - df["temp_8m"]
+    df["diff_rh_2m_4m"] = df["rh_2m"] - df["rh_4m"]
+    df["diff_rh_4m_8m"] = df["rh_4m"] - df["rh_8m"]
+    df["diff_rh_2m_8m"] = df["rh_2m"] - df["rh_8m"]
 
-        continuous = df["time_gap_minutes"] <= 60
-        valid_pair = prev_valid & curr_valid & continuous
+    # 3. Temporal 30-min rates (8)
+    continuous_mask = (df["time_gap_minutes"] <= 60.0) & (df["time_gap_minutes"] > 0)
+    for rate_name, base_col in [
+        ("rate_temp_2m", "temp_2m"), ("rate_temp_4m", "temp_4m"), ("rate_temp_8m", "temp_8m"),
+        ("rate_rh_2m", "rh_2m"), ("rate_rh_4m", "rh_4m"), ("rate_rh_8m", "rh_8m"),
+        ("rate_pressure", "pressure"), ("rate_battery", "battery_voltage")
+    ]:
+        diff_val = df[base_col].diff()
+        df[rate_name] = np.where(continuous_mask, diff_val / (df["time_gap_minutes"] / 30.0), np.nan)
 
-        df[name + "_previous"] = previous
-        df[name + "_change"] = np.where(valid_pair, df[column] - previous, np.nan)
-        df[name + "_rate"] = np.where(valid_pair, df[name + "_change"] / (df["time_gap_minutes"] / 60), np.nan)
+    # 4. Robust rolling deviations (5)
+    window_size = 9
+    for dev_name, base_col in [
+        ("dev_temp_2m", "temp_2m"), ("dev_temp_4m", "temp_4m"), ("dev_temp_8m", "temp_8m"),
+        ("dev_rh_2m", "rh_2m"), ("dev_pressure", "pressure")
+    ]:
+        med = df[base_col].rolling(window=window_size, min_periods=3, center=True).median()
+        abs_dev = np.abs(df[base_col] - med)
+        mad = abs_dev.rolling(window=window_size, min_periods=3, center=True).median() * 1.4826
+        df[dev_name] = np.where(mad > 1e-4, abs_dev / mad, abs_dev)
 
-    # Cross-sensor features
-    temp_valid = df[temperature_columns].replace(-40, np.nan)
-    rh_valid = df[humidity_columns].where((df[humidity_columns] >= 0) & (df[humidity_columns] <= 100))
-
-    df["temperature_valid_count"] = temp_valid.notna().sum(axis=1)
-    df["humidity_valid_count"] = rh_valid.notna().sum(axis=1)
-    df["temperature_mean"] = temp_valid.mean(axis=1)
-    df["temperature_spread"] = np.where(df["temperature_valid_count"] >= 2, temp_valid.max(axis=1) - temp_valid.min(axis=1), np.nan)
-
-    for col in temperature_columns:
-        name = col.split("(")[0].strip().replace(" ", "_")
-        df[name + "_deviation"] = df[col] - df["temperature_mean"]
-        df.loc[(df[col] == -40) | (df["temperature_valid_count"] < 2), name + "_deviation"] = np.nan
-
-    df["humidity_mean"] = rh_valid.mean(axis=1)
-    df["humidity_spread"] = np.where(df["humidity_valid_count"] >= 2, rh_valid.max(axis=1) - rh_valid.min(axis=1), np.nan)
-
-    for col in humidity_columns:
-        name = col.split("(")[0].strip().replace(" ", "_")
-        df[name + "_deviation"] = df[col] - df["humidity_mean"]
-        df.loc[(df[col] < 0) | (df[col] > 100) | (df["humidity_valid_count"] < 2), name + "_deviation"] = np.nan
-
-    # Rolling features (respecting continuous blocks)
-    continuous_block = (df["time_gap_minutes"] > 60).cumsum()
-    for col in sensor_columns:
-        name = col.split("(")[0].strip().replace(" ", "_")
-        series = df[col].copy()
-        if col in temperature_columns:
-            series = series.mask(series == -40)
-        if col in humidity_columns:
-            series = series.mask((series < 0) | (series > 100))
-        rolling = series.groupby(continuous_block).rolling(window=5, min_periods=2, closed="left")
-        df[name + "_rolling_mean"] = rolling.mean().reset_index(level=0, drop=True)
-        df[name + "_rolling_std"] = rolling.std().reset_index(level=0, drop=True)
-
-    # Repetition features
-    for col in sensor_columns:
-        name = col.split("(")[0].strip().replace(" ", "_")
-        curr = df[col]
-        prev = curr.shift(1)
-        valid_c = curr.notna()
-        valid_p = prev.notna()
-        if col in temperature_columns:
-            valid_c &= curr != -40
-            valid_p &= prev != -40
-        if col in humidity_columns:
-            valid_c &= (curr >= 0) & (curr <= 100)
-            valid_p &= (prev >= 0) & (prev <= 100)
-        cont = df["time_gap_minutes"] <= 60
-        same = valid_c & valid_p & cont & (curr == prev)
-        df[name + "_same_as_previous"] = same.astype(int)
-        grp = (~same).cumsum()
-        df[name + "_repeat_count"] = same.groupby(grp).cumsum()
-        df.loc[~valid_c, name + "_repeat_count"] = 0
-
-        # Duration
-        start_time = df["timestamp"].where(~same).ffill()
-        dur = (df["timestamp"] - start_time).dt.total_seconds() / 60
-        df[name + "_repeat_duration_minutes"] = np.where(same, dur, 0)
+    # 5. Diurnal solar harmonics (2)
+    hours = df["timestamp"].dt.hour + df["timestamp"].dt.minute / 60.0
+    df["solar_diurnal_sin"] = np.sin(2 * np.pi * hours / 24.0)
+    df["solar_diurnal_cos"] = np.cos(2 * np.pi * hours / 24.0)
 
     # ----------------------------------------------------
-    # 2. ML Preparation & Isolation Forest Inference
+    # 2. Extract Test Split & ML Model Inference
     # ----------------------------------------------------
-    print("\n[2/6] Preparing test features and running model inference...")
+    print(f"\n[2/6] Running ML Model Inference ({model_name.upper()})...")
     split_index = int(len(df) * 0.70)
     test_features = df.iloc[split_index:].copy().reset_index(drop=True)
 
-    # Read training reference columns & medians
     with open(FEATURE_COLS_FILE, "r") as f:
         feature_columns = json.load(f)
     train_medians = joblib.load(TRAIN_MEDIANS_FILE)
-    ml_feature_cols = [c for c in feature_columns if not c.endswith("_missing")]
 
-    # Create ML dataframe for test
-    test_ml = test_features[[c for c in ml_feature_cols if c in test_features.columns]].copy()
-
-    # Missing indicators
-    for col in sensor_columns:
-        name = col.split("(")[0].strip().replace(" ", "_")
-        test_ml[name + "_missing"] = test_ml[col].isna().astype(int) if col in test_ml.columns else 0
-
-    # Clean known sentinels
-    for col in temperature_columns:
-        if col in test_ml.columns:
-            test_ml.loc[test_ml[col] == -40, col] = np.nan
-    for col in humidity_columns:
-        if col in test_ml.columns:
-            test_ml.loc[(test_ml[col] < 0) | (test_ml[col] > 100), col] = np.nan
-
-    # Align columns to exact train columns
-    missing_cols = [c for c in feature_columns if c not in test_ml.columns]
-    for c in missing_cols:
-        test_ml[c] = np.nan
-    test_ml = test_ml[feature_columns].copy()
-
-    continuous_cols = [c for c in feature_columns if not c.endswith("_missing")]
-    test_ml[continuous_cols] = test_ml[continuous_cols].replace([np.inf, -np.inf], np.nan)
-    test_ml[continuous_cols] = test_ml[continuous_cols].fillna(train_medians)
-
+    test_ml = test_features[feature_columns].copy()
+    test_ml = test_ml.replace([np.inf, -np.inf], np.nan)
+    test_ml = test_ml.fillna(train_medians)
     test_ml.to_csv(TEST_READY_OUT, index=False)
 
-    # Load model and predict based on selected model_name
-    # Scale continuous features with RobustScaler
     scaler = joblib.load("models/scaler.pkl")
-    test_ml_scaled = test_ml.copy()
-    test_ml_scaled[continuous_cols] = scaler.transform(test_ml[continuous_cols])
+    test_ml_scaled = pd.DataFrame(scaler.transform(test_ml), columns=feature_columns)
+
 
     # Load model and predict based on selected model_name
     model_name_lower = str(model_name).lower().strip()
@@ -204,8 +139,16 @@ def run_validation_pipeline(model_name="isolation_forest"):
     # 3. Rule-based QC
     # ----------------------------------------------------
     print("\n[3/6] Running Rule-based QC...")
-    temp_cols = temperature_columns
-    rh_cols = humidity_columns
+    temp_cols = [
+        "AIR_TEMPERATURE1(°C at 2m height)",
+        "AIR_TEMPERATURE2(°C at 4m height)",
+        "AIR_TEMPERATURE3(°C at 8m height)"
+    ]
+    rh_cols = [
+        "RELATIVE_HUMIDITY1(% at 2m height)",
+        "RELATIVE_HUMIDITY2(% at 4m height)",
+        "RELATIVE_HUMIDITY3(% at 8m height)"
+    ]
     wind_dir_cols = ["WIND_DIRECTION1(deg at 3m height)", "WIND_DIRECTION2(deg at 6m height)", "WIND_DIRECTION3(deg at 10m height)"]
     rad_cols = ["RAD_LONG_OUT(w/m2) ", "RAD_LONG_IN(w/m2) "]
     flux_cols = ["HEAT_FLUX1(w/m2 at 0.50m height) ", "HEAT_FLUX2(w/m2 at 0.20m height)"]
@@ -223,24 +166,25 @@ def run_validation_pipeline(model_name="isolation_forest"):
     rule_df["rule_all_rh_zero"] = (df[rh_cols] == 0).all(axis=1)
     rule_df["rule_all_core_zero"] = rule_df["rule_all_temperature_zero"] & rule_df["rule_all_rh_zero"]
     rule_df["rule_large_time_gap"] = df["time_gap_minutes"] > 60
-    rule_df["rule_rainfall_suspicious"] = df["rainfall_suspicious"] == 1
+    rainfall_suspicious = (df["RAINFALL(mm)"] > 100) if "RAINFALL(mm)" in df.columns else False
+    rule_df["rule_rainfall_suspicious"] = rainfall_suspicious
 
-    temp_repeat_cols = [f"AIR_TEMPERATURE{i}_repeat_duration_minutes" for i in [1, 2, 3] if f"AIR_TEMPERATURE{i}_repeat_duration_minutes" in df.columns]
-    rh_repeat_cols = [f"RELATIVE_HUMIDITY{i}_repeat_duration_minutes" for i in [1, 2, 3] if f"RELATIVE_HUMIDITY{i}_repeat_duration_minutes" in df.columns]
+    # Vectorized frozen sensor detection
+    gap_series = df["time_gap_minutes"]
+    def is_series_frozen(series, min_minutes=180, exclude_val=None):
+        valid = series.notna() & (series != -40)
+        if exclude_val is not None:
+            valid &= (series != exclude_val)
+        same = (series == series.shift(1)) & valid & (gap_series <= 60)
+        streak_count = same.groupby((~same).cumsum()).cumsum()
+        return streak_count * 30 >= min_minutes
 
-    spread_temp = df["temperature_spread"].fillna(0)
-    spread_rh = df["humidity_spread"].fillna(0)
+    temp_frozen_masks = [is_series_frozen(df[c], min_minutes=120) for c in temp_cols if c in df.columns]
+    rh_frozen_masks = [is_series_frozen(df[c], min_minutes=120, exclude_val=100.0) for c in rh_cols if c in df.columns]
 
-    rule_df["rule_temperature_frozen"] = (
-        ((df[temp_repeat_cols] >= 180).any(axis=1))
-        | ((df[temp_repeat_cols] >= 120).any(axis=1) & (spread_temp > 0.3))
-    ).astype(int)
 
-    rule_df["rule_rh_frozen"] = (
-        ((df[rh_repeat_cols] >= 180).any(axis=1))
-        | ((df[rh_repeat_cols] >= 120).any(axis=1) & (spread_rh > 2.0))
-    ).astype(int)
-
+    rule_df["rule_temperature_frozen"] = (pd.concat(temp_frozen_masks, axis=1).any(axis=1)).astype(int) if temp_frozen_masks else 0
+    rule_df["rule_rh_frozen"] = (pd.concat(rh_frozen_masks, axis=1).any(axis=1)).astype(int) if rh_frozen_masks else 0
     rule_df["rule_sensor_frozen"] = ((rule_df["rule_temperature_frozen"] == 1) | (rule_df["rule_rh_frozen"] == 1)).astype(int)
 
     rule_cols_list = [
@@ -262,7 +206,25 @@ def run_validation_pipeline(model_name="isolation_forest"):
     t_spread_thresh = cross_thresh["temperature_spread_99th_percentile"]
     rh_spread_thresh = cross_thresh["humidity_spread_99th_percentile"]
 
-    cross_df = df[["timestamp", "temperature_valid_count", "temperature_mean", "temperature_spread", "humidity_valid_count", "humidity_mean", "humidity_spread"]].copy()
+    temp_valid = df[temp_cols].replace(-40, np.nan)
+    rh_valid = df[rh_cols].where((df[rh_cols] >= 0) & (df[rh_cols] <= 100))
+
+    t_valid_count = temp_valid.notna().sum(axis=1)
+    rh_valid_count = rh_valid.notna().sum(axis=1)
+    t_mean = temp_valid.mean(axis=1)
+    rh_mean = rh_valid.mean(axis=1)
+    t_spread = np.where(t_valid_count >= 2, temp_valid.max(axis=1) - temp_valid.min(axis=1), np.nan)
+    rh_spread = np.where(rh_valid_count >= 2, rh_valid.max(axis=1) - rh_valid.min(axis=1), np.nan)
+
+    cross_df = pd.DataFrame({
+        "timestamp": df["timestamp"],
+        "temperature_valid_count": t_valid_count,
+        "temperature_mean": t_mean,
+        "temperature_spread": t_spread,
+        "humidity_valid_count": rh_valid_count,
+        "humidity_mean": rh_mean,
+        "humidity_spread": rh_spread
+    })
     cross_df["temperature_disagreement"] = (cross_df["temperature_spread"] > t_spread_thresh).fillna(False)
     cross_df["humidity_disagreement"] = (cross_df["humidity_spread"] > rh_spread_thresh).fillna(False)
     cross_df["cross_sensor_evidence"] = (cross_df["temperature_disagreement"] | cross_df["humidity_disagreement"]).astype(int)
@@ -278,6 +240,7 @@ def run_validation_pipeline(model_name="isolation_forest"):
 
     for idx in cross_df[cross_df["temperature_disagreement"]].index:
         devs = {c: abs(temp_valid.loc[idx, c] - t_med.loc[idx]) for c in temp_cols if pd.notna(temp_valid.loc[idx, c])}
+
         if len(devs) >= 2:
             sorted_s = sorted(devs.items(), key=lambda x: x[1], reverse=True)
             if sorted_s[0][1] >= (t_spread_thresh * 0.5):
