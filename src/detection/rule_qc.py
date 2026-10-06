@@ -1,7 +1,12 @@
+import os
 import pandas as pd
 
 
-input_file = "data/processed/aws_clean.csv"
+input_file = (
+    "data/processed/aws_features.csv"
+    if os.path.exists("data/processed/aws_features.csv")
+    else "data/processed/aws_clean.csv"
+)
 output_file = "data/processed/aws_rule_evidence.csv"
 
 
@@ -134,6 +139,39 @@ df["rule_rainfall_suspicious"] = (
 
 
 # -------------------------------------------------
+# Frozen sensor evidence
+# -------------------------------------------------
+
+temp_repeat_cols = [
+    col for col in df.columns if col.startswith("AIR_TEMPERATURE") and col.endswith("_repeat_duration_minutes")
+]
+rh_repeat_cols = [
+    col for col in df.columns if col.startswith("RELATIVE_HUMIDITY") and col.endswith("_repeat_duration_minutes")
+]
+
+if temp_repeat_cols and rh_repeat_cols:
+    spread_temp = df["temperature_spread"].fillna(0) if "temperature_spread" in df.columns else 0
+    spread_rh = df["humidity_spread"].fillna(0) if "humidity_spread" in df.columns else 0
+
+    df["rule_temperature_frozen"] = (
+        ((df[temp_repeat_cols] >= 180).any(axis=1))
+        | ((df[temp_repeat_cols] >= 120).any(axis=1) & (spread_temp > 0.3))
+    ).astype(int)
+
+    df["rule_rh_frozen"] = (
+        ((df[rh_repeat_cols] >= 180).any(axis=1))
+        | ((df[rh_repeat_cols] >= 120).any(axis=1) & (spread_rh > 2.0))
+    ).astype(int)
+else:
+    df["rule_temperature_frozen"] = 0
+    df["rule_rh_frozen"] = 0
+
+df["rule_sensor_frozen"] = (
+    (df["rule_temperature_frozen"] == 1) | (df["rule_rh_frozen"] == 1)
+).astype(int)
+
+
+# -------------------------------------------------
 # Total rule evidence
 # -------------------------------------------------
 
@@ -149,6 +187,7 @@ rule_columns = [
     "rule_all_temperature_zero",
     "rule_all_rh_zero",
     "rule_all_core_zero",
+    "rule_sensor_frozen",
     "rule_large_time_gap",
     "rule_rainfall_suspicious"
 ]

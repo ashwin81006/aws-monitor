@@ -1,0 +1,34 @@
+{
+    "evaluation_type": "controlled_fault_validation",
+    "event_level": {
+        "fault_events_injected": 5,
+        "fault_events_detected": 5,
+        "event_recall": 1.0,
+        "event_precision": 1.0,
+        "event_f1_score": 1.0,
+        "weather_extreme_rejection_passed": true
+    },
+    "benchmark_window_level": {
+        "window_observations": 289,
+        "true_positives": 17,
+        "false_positives": 26,
+        "true_negatives": 229,
+        "false_negatives": 17,
+        "precision": 0.3953,
+        "recall": 0.5,
+        "f1_score": 0.4416
+    },
+    "raw_full_testset_level": {
+        "total_test_observations": 7143,
+        "true_positives": 17,
+        "false_positives": 1796,
+        "true_negatives": 5313,
+        "false_negatives": 17,
+        "accuracy": 0.7462,
+        "precision": 0.0094,
+        "recall": 0.5,
+        "f1_score": 0.0184,
+        "specificity": 0.7474
+    },
+    "model_name": "Isolation Forest"
+}

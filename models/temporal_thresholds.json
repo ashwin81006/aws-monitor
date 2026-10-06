@@ -1,4 +1,6 @@
 {
     "temperature_rate_99th_percentile": 7.300000000000004,
-    "humidity_rate_99th_percentile": 28.80000000000001
+    "humidity_rate_99th_percentile": 28.80000000000001,
+    "temperature_single_rate_99th_percentile": 7.5,
+    "humidity_single_rate_99th_percentile": 30.0
 }

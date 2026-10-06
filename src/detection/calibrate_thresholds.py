@@ -126,12 +126,46 @@ def calibrate_temporal():
         "humidity_rate"
     ] = np.nan
 
+    single_temp_rates = []
+    single_rh_rates = []
+
+    for col in TEMP_COLS:
+        col_rate = (
+            temperature[col].diff().abs()
+            / (train["time_gap_minutes"] / 60)
+        )
+        col_rate.loc[~valid_gap] = np.nan
+        col_rate.loc[
+            temperature[col].isna() | temperature[col].shift(1).isna()
+        ] = np.nan
+        single_temp_rates.append(col_rate.dropna())
+
+    for col in RH_COLS:
+        col_rate = (
+            humidity[col].diff().abs()
+            / (train["time_gap_minutes"] / 60)
+        )
+        col_rate.loc[~valid_gap] = np.nan
+        col_rate.loc[
+            humidity[col].isna() | humidity[col].shift(1).isna()
+        ] = np.nan
+        single_rh_rates.append(col_rate.dropna())
+
+    all_temp_rates = pd.concat(single_temp_rates) if single_temp_rates else pd.Series()
+    all_rh_rates = pd.concat(single_rh_rates) if single_rh_rates else pd.Series()
+
     thresholds = {
         "temperature_rate_99th_percentile": float(
             train["temperature_rate"].dropna().quantile(0.99)
         ),
         "humidity_rate_99th_percentile": float(
             train["humidity_rate"].dropna().quantile(0.99)
+        ),
+        "temperature_single_rate_99th_percentile": float(
+            all_temp_rates.quantile(0.99)
+        ),
+        "humidity_single_rate_99th_percentile": float(
+            all_rh_rates.quantile(0.99)
         )
     }
 
@@ -141,13 +175,23 @@ def calibrate_temporal():
     print("\n--- TEMPORAL CALIBRATION ---")
     print("Training rows:", len(train))
     print(
-        "Temperature rate 99th percentile:",
+        "Temperature consensus rate 99th percentile:",
         thresholds["temperature_rate_99th_percentile"],
         "°C/hour"
     )
     print(
-        "Humidity rate 99th percentile:",
+        "Humidity consensus rate 99th percentile:",
         thresholds["humidity_rate_99th_percentile"],
+        "%/hour"
+    )
+    print(
+        "Temperature single-sensor rate 99th percentile:",
+        thresholds["temperature_single_rate_99th_percentile"],
+        "°C/hour"
+    )
+    print(
+        "Humidity single-sensor rate 99th percentile:",
+        thresholds["humidity_single_rate_99th_percentile"],
         "%/hour"
     )
     print("Saved:", TEMPORAL_OUTPUT)

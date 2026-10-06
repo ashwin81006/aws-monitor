@@ -32,7 +32,7 @@ df["time_gap_minutes"] = (
 )
 
 df["large_time_gap"] = (
-    df["time_gap_minutes"] > 30
+    df["time_gap_minutes"] > 60
 ).astype(int)
 
 # --------------------------------------------------

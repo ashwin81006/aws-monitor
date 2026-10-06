@@ -123,6 +123,34 @@ df["cross_sensor_evidence"] = (
 ).astype(int)
 
 
+# Tri-sensor majority voting: identify specifically which sensor is divergent
+df["temp_divergent_sensor"] = ""
+df["rh_divergent_sensor"] = ""
+df["temp_isolated_fault"] = 0
+df["rh_isolated_fault"] = 0
+
+temp_med = temperature.median(axis=1)
+rh_med = humidity.median(axis=1)
+
+for idx in df[df["temperature_disagreement"]].index:
+    valid_sensors = [col for col in temp_columns if pd.notna(temperature.loc[idx, col])]
+    if len(valid_sensors) >= 2:
+        devs = {col: abs(temperature.loc[idx, col] - temp_med.loc[idx]) for col in valid_sensors}
+        sorted_sensors = sorted(devs.items(), key=lambda x: x[1], reverse=True)
+        if sorted_sensors[0][1] >= (temperature_threshold * 0.5):
+            df.loc[idx, "temp_divergent_sensor"] = sorted_sensors[0][0].split("(")[0].strip()
+            df.loc[idx, "temp_isolated_fault"] = 1
+
+for idx in df[df["humidity_disagreement"]].index:
+    valid_sensors = [col for col in rh_columns if pd.notna(humidity.loc[idx, col])]
+    if len(valid_sensors) >= 2:
+        devs = {col: abs(humidity.loc[idx, col] - rh_med.loc[idx]) for col in valid_sensors}
+        sorted_sensors = sorted(devs.items(), key=lambda x: x[1], reverse=True)
+        if sorted_sensors[0][1] >= (humidity_threshold * 0.5):
+            df.loc[idx, "rh_divergent_sensor"] = sorted_sensors[0][0].split("(")[0].strip()
+            df.loc[idx, "rh_isolated_fault"] = 1
+
+
 print("Total observations:", len(df))
 
 print("\n--- CROSS-SENSOR EVIDENCE ---")
@@ -194,11 +222,15 @@ output_columns = [
     "temperature_mean",
     "temperature_spread",
     "temperature_disagreement",
+    "temp_divergent_sensor",
+    "temp_isolated_fault",
 
     "humidity_valid_count",
     "humidity_mean",
     "humidity_spread",
     "humidity_disagreement",
+    "rh_divergent_sensor",
+    "rh_isolated_fault",
 
     "cross_sensor_evidence"
 ]

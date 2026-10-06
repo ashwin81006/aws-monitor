@@ -1,0 +1,65 @@
+{
+    "total_explained_events": 888,
+    "primary_ml_drivers_breakdown": {
+        "RELATIVE_HUMIDITY2_missing": 181,
+        "BATTRY_VOLTAGE_missing": 154,
+        "humidity_valid_count": 133,
+        "time_gap_minutes": 122,
+        "RELATIVE_HUMIDITY3_rate": 41,
+        "RELATIVE_HUMIDITY1_same_as_previous": 34,
+        "AIR_TEMPERATURE2_rate": 30,
+        "AIR_TEMPERATURE3_deviation": 17,
+        "humidity_spread": 15,
+        "RELATIVE_HUMIDITY2_rate": 14
+    },
+    "target_sensor_breakdown": {
+        "CORE_SENSORS": 490,
+        "CONSENSUS_ALL_HEIGHTS": 148,
+        "DATA_LOGGER_COMMUNICATION": 113,
+        "RELATIVE_HUMIDITY3": 58,
+        "RELATIVE_HUMIDITY1": 29,
+        "RELATIVE_HUMIDITY2": 15,
+        "AIR_TEMPERATURE3": 11,
+        "AIR_TEMPERATURE2": 8,
+        "MULTIVARIATE_VECTOR": 7,
+        "STATION_POWER_SYSTEM": 6,
+        "AIR_TEMPERATURE1": 3
+    },
+    "sample_explanations": [
+        {
+            "event_id": 1,
+            "target_sensor": "CORE_SENSORS",
+            "candidate_class": "PROBABLE_SENSOR_FAULT",
+            "probable_root_cause": "SENSOR_OR_DATA_QUALITY",
+            "diagnostic_explanation": "Anomaly driven by: humidity_valid_count (val: 1.0, SHAP: +0.696); RELATIVE_HUMIDITY2_missing (val: 1.0, SHAP: +0.524); BATTRY_VOLTAGE_missing (val: 1.0, SHAP: +0.409)"
+        },
+        {
+            "event_id": 2,
+            "target_sensor": "CORE_SENSORS",
+            "candidate_class": "PROBABLE_SENSOR_FAULT",
+            "probable_root_cause": "SENSOR_OR_DATA_QUALITY",
+            "diagnostic_explanation": "Anomaly driven by: humidity_valid_count (val: 2.0, SHAP: +0.380); BATTRY_VOLTAGE_missing (val: 1.0, SHAP: +0.323); ATMOSPHERIC_PRESSURE_same_as_previous (val: 1.0, SHAP: +0.317)"
+        },
+        {
+            "event_id": 3,
+            "target_sensor": "CORE_SENSORS",
+            "candidate_class": "PROBABLE_SENSOR_FAULT",
+            "probable_root_cause": "SENSOR_OR_DATA_QUALITY",
+            "diagnostic_explanation": "Anomaly driven by: RELATIVE_HUMIDITY2_missing (val: 1.0, SHAP: +0.580); AIR_TEMPERATURE2_missing (val: 1.0, SHAP: +0.466); humidity_valid_count (val: 2.0, SHAP: +0.417)"
+        },
+        {
+            "event_id": 4,
+            "target_sensor": "CORE_SENSORS",
+            "candidate_class": "PROBABLE_SENSOR_FAULT",
+            "probable_root_cause": "SENSOR_OR_DATA_QUALITY",
+            "diagnostic_explanation": "Anomaly driven by: BATTRY_VOLTAGE_missing (val: 1.0, SHAP: +0.468); humidity_valid_count (val: 2.0, SHAP: +0.398); RELATIVE_HUMIDITY1_missing (val: 1.0, SHAP: +0.240)"
+        },
+        {
+            "event_id": 5,
+            "target_sensor": "CORE_SENSORS",
+            "candidate_class": "PROBABLE_SENSOR_FAULT",
+            "probable_root_cause": "SENSOR_OR_DATA_QUALITY",
+            "diagnostic_explanation": "Anomaly driven by: AIR_TEMPERATURE2_same_as_previous (val: 1.0, SHAP: +0.417); ATMOSPHERIC_PRESSURE_repeat_count (val: 2.0, SHAP: +0.405); BATTRY_VOLTAGE_missing (val: 1.0, SHAP: +0.402)"
+        }
+    ]
+}

@@ -3,8 +3,8 @@ import pandas as pd
 import joblib
 from sklearn.ensemble import IsolationForest
 
-train_file = "data/processed/aws_train_ready.csv"
-test_file = "data/processed/aws_test_ready.csv"
+train_file = "data/processed/aws_train_scaled.csv"
+test_file = "data/processed/aws_test_scaled.csv"
 features_file = "data/processed/aws_features.csv"
 
 model_file = "models/isolation_forest.pkl"

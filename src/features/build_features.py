@@ -175,6 +175,8 @@ for column in humidity_columns:
 # ROLLING FEATURES
 # ==================================================
 
+continuous_segment = (df["time_gap_minutes"] > 60).cumsum()
+
 for column in sensor_columns:
 
     name = column.split("(")[0].strip()
@@ -191,14 +193,14 @@ for column in sensor_columns:
             (series > 100)
         )
 
-    rolling = series.rolling(
+    rolling = series.groupby(continuous_segment).rolling(
         window=5,
         min_periods=2,
         closed="left"
     )
 
-    df[name + "_rolling_mean"] = rolling.mean()
-    df[name + "_rolling_std"] = rolling.std()
+    df[name + "_rolling_mean"] = rolling.mean().reset_index(level=0, drop=True)
+    df[name + "_rolling_std"] = rolling.std().reset_index(level=0, drop=True)
 
 
 # ==================================================
