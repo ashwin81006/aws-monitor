@@ -1,86 +1,61 @@
 from src.api.services.inference_service import inference_service
 from src.api.schemas.telemetry import TelemetryPointInput
-
+from src.core.detector import AWSUnifiedDetector
 
 
 def test_sentinel_hardware_fault():
-    # 4m sensor open-circuit sentinel (-40°C)
+    """Validates that ISRO ADC open-circuit hardware sentinels (9999.0°C or -49.9°C) are flagged as critical."""
     payload = TelemetryPointInput(
         timestamp="2026-10-10 12:00:00",
-        temp_2m=31.2,
-        temp_4m=-40.0,
-        temp_8m=30.8,
-        rh_2m=65.0,
-        rh_4m=66.2,
-        rh_8m=67.0,
-        pressure=998.4,
-        battery_voltage=13.1
+        temperature=9999.0,
+        humidity=65.0,
+        pressure=998.4
     )
     res = inference_service.infer_point(payload)
 
-    assert res.classification == "PROBABLE_SENSOR_FAULT"
+    assert res.is_anomaly is True
     assert res.severity == "CRITICAL"
-    assert "temp_4m" in res.affected_sensors
+    assert "Temperature" in res.affected_sensors or "Temperature" in res.root_cause
     assert res.fused_anomaly_score >= 0.90
+    assert res.is_healed is True
+    assert res.corrected_temperature is not None and res.corrected_temperature < 100.0
 
 
-def test_battery_brownout_detection():
-    # Battery drops below 10.5V safety limit
-    payload = TelemetryPointInput(
-        timestamp="2026-10-10 03:00:00",
-        temp_2m=24.5,
-        temp_4m=24.2,
-        temp_8m=24.0,
-        rh_2m=75.0,
-        rh_4m=76.0,
-        rh_8m=77.0,
-        pressure=1001.2,
-        battery_voltage=9.4
-    )
-    res = inference_service.infer_point(payload)
+def test_communication_loss_detection():
+    """Validates that missing or disconnected telemetry payloads trigger a communication loss alarm and self-healing."""
+    detector = AWSUnifiedDetector()
+    diag = detector.diagnose_and_detect(temp=None, rh=None, press=None)
 
-    assert res.classification in ["PROBABLE_SENSOR_FAULT", "STATION_SYSTEM_FAILURE"]
-    assert "battery_voltage" in res.affected_sensors
-    assert res.fused_anomaly_score >= 0.85
+    assert diag["is_anomaly"] is True
+    assert "COMMUNICATION_ERROR" in diag["root_cause"]
+    assert diag["severity"] >= 0.90
+    assert diag["is_healed"] is True
 
 
 def test_spike_divergence_detection():
-    # 4m spikes suddenly while 2m and 8m stay normal
-    payload = TelemetryPointInput(
-        timestamp="2026-10-10 15:00:00",
-        temp_2m=32.0,
-        temp_4m=-15.0,
-        temp_8m=31.5,
-        rh_2m=60.0,
-        rh_4m=61.0,
-        rh_8m=62.0,
-        pressure=998.0,
-        battery_voltage=13.0,
-        prev_temp_4m=31.8
-    )
-    res = inference_service.infer_point(payload)
+    """Validates that an unphysical rate-of-change jump is flagged as an unphysical spike."""
+    detector = AWSUnifiedDetector()
+    # Establish stable history
+    for _ in range(4):
+        detector.diagnose_and_detect(temp=30.0, rh=65.0, press=1000.0)
 
-    assert res.classification == "PROBABLE_SENSOR_FAULT"
-    assert "temp_4m" in res.affected_sensors
-    assert res.fused_anomaly_score >= 0.90
+    # Inject sharp 10°C jump in single step
+    diag = detector.diagnose_and_detect(temp=42.0, rh=65.0, press=1000.0)
+
+    assert diag["is_anomaly"] is True
+    assert "SPIKE" in diag["root_cause"]
+    assert diag["culprit_sensor"] == "Temperature"
+    assert diag["fused_anomaly_score"] >= 0.80
 
 
 def test_heatwave_consensus_no_false_alarm():
-    # All 3 sensors rise smoothly to 46°C with natural vertical lapse rate
-    payload = TelemetryPointInput(
-        timestamp="2026-10-10 14:00:00",
-        temp_2m=46.2,
-        temp_4m=45.9,
-        temp_8m=45.6,
-        rh_2m=25.0,
-        rh_4m=25.5,
-        rh_8m=26.0,
-        pressure=996.0,
-        battery_voltage=13.5
-    )
-    res = inference_service.infer_point(payload)
+    """Validates that genuine high-temperature summer heatwaves with low humidity are recognized without false alarms."""
+    detector = AWSUnifiedDetector()
+    # Establish pre-conditions
+    detector.diagnose_and_detect(temp=41.0, rh=28.0, press=998.0)
+    diag = detector.diagnose_and_detect(temp=43.5, rh=22.0, press=996.0)
 
-    assert res.classification in ["POSSIBLE_WEATHER_EXTREME", "BENIGN_EXTREME", "NORMAL"]
-    assert res.severity != "CRITICAL"
-    assert "temp_4m" not in res.affected_sensors
-
+    assert diag["is_anomaly"] is False
+    assert diag["is_extreme_weather"] is True
+    assert diag["severity"] < 0.50
+    assert "HEATWAVE" in diag["root_cause"] or "GENUINE_METEOROLOGICAL_EVENT" in diag["root_cause"]

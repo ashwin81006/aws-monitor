@@ -1,38 +1,46 @@
-import os
-import json
+import numpy as np
 import pandas as pd
 
+from src.features.feature_engineering import FEATURE_COLUMNS, compute_features
 
 
-def test_31_ml_feature_columns():
-    feature_meta_path = "models/ml_feature_columns.json"
-    assert os.path.exists(feature_meta_path), "ml_feature_columns.json missing"
-    with open(feature_meta_path, "r") as f:
-        features = json.load(f)
-
-    assert len(features) == 31, f"Expected exactly 31 features, got {len(features)}"
-    expected_core = [
-        "temp_2m", "temp_4m", "temp_8m",
-        "rh_2m", "rh_4m", "rh_8m",
-        "pressure", "battery_voltage", "wind_speed_10m", "rainfall",
-        "diff_temp_2m_4m", "diff_temp_4m_8m", "diff_temp_2m_8m",
-        "diff_rh_2m_4m", "diff_rh_4m_8m", "diff_rh_2m_8m",
-        "rate_temp_2m", "rate_temp_4m", "rate_temp_8m",
-        "rate_rh_2m", "rate_rh_4m", "rate_rh_8m",
-        "rate_pressure", "rate_battery",
-        "dev_temp_2m", "dev_temp_4m", "dev_temp_8m",
-        "dev_rh_2m", "dev_pressure",
-        "solar_diurnal_sin", "solar_diurnal_cos"
+def test_13_meteorological_feature_columns():
+    """Verifies that the feature specification has exactly 13 meteorological features."""
+    assert len(FEATURE_COLUMNS) == 13, f"Expected 13 features, got {len(FEATURE_COLUMNS)}"
+    expected = [
+        "temperature",
+        "humidity",
+        "pressure",
+        "dew_point",
+        "dew_point_depression",
+        "temp_rate",
+        "humidity_rate",
+        "pressure_rate",
+        "temp_dev",
+        "humidity_dev",
+        "pressure_dev",
+        "sin_hour",
+        "cos_hour"
     ]
-    for feat in expected_core:
-        assert feat in features, f"Expected feature '{feat}' missing in feature specification"
+    for feat in expected:
+        assert feat in FEATURE_COLUMNS, f"Expected feature '{feat}' missing in FEATURE_COLUMNS"
 
 
-def test_processed_features_file():
-    feat_path = "data/processed/aws_features.csv"
-    assert os.path.exists(feat_path), "aws_features.csv missing"
-    df = pd.read_csv(feat_path, nrows=20)
-    assert len(df) == 20
-    assert "diff_temp_2m_8m" in df.columns
-    assert "rate_temp_4m" in df.columns
-    assert "solar_diurnal_sin" in df.columns
+def test_in_memory_feature_computation():
+    """Verifies in-memory feature engineering without dumping disk CSVs."""
+    sample_df = pd.DataFrame({
+        "timestamp": pd.date_range("2026-10-10 00:00:00", periods=20, freq="30min"),
+        "temperature": [28.0 + (i % 5) * 0.5 for i in range(20)],
+        "humidity": [65.0 - (i % 5) * 2.0 for i in range(20)],
+        "pressure": [1005.0 + (i % 3) * 0.2 for i in range(20)],
+    })
+
+    feats_df = compute_features(sample_df)
+
+    assert len(feats_df) == 20
+    for col in FEATURE_COLUMNS:
+        assert col in feats_df.columns, f"Feature column '{col}' missing from computed DataFrame"
+        assert not feats_df[col].isna().any(), f"Computed feature column '{col}' contains NaNs"
+
+    # Thermodynamic sanity: Dew point must be <= Temperature
+    assert (feats_df["dew_point"] <= feats_df["temperature"] + 0.1).all(), "Dew point exceeds air temperature"

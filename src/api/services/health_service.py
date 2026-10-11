@@ -135,5 +135,9 @@ class HealthService:
             )
         return self._cached_health
 
+    def set_active_dataset(self, summary: StationSummaryResponse, health: SensorHealthResponse):
+        self._cached_summary = summary
+        self._cached_health = health
+
 
 health_service = HealthService()

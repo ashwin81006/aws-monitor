@@ -107,6 +107,9 @@ class StreamingFeatureExtractor:
     def __init__(self, window_size: int = 8):
         self.window_size = window_size
         self.history = deque(maxlen=window_size)
+        self.abs_diff_t = deque(maxlen=window_size)
+        self.abs_diff_rh = deque(maxlen=window_size)
+        self.abs_diff_p = deque(maxlen=window_size)
         self.last_ts: Optional[pd.Timestamp] = None
 
     def push(self, temp: float, rh: float, press: float, timestamp: Optional[pd.Timestamp] = None) -> Dict[str, float]:
@@ -115,8 +118,8 @@ class StreamingFeatureExtractor:
         dt_steps = 1.0
         if self.last_ts is not None:
             gap_sec = (ts - self.last_ts).total_seconds()
-            if gap_sec > 0:
-                dt_steps = max(0.1, gap_sec / 1800.0)
+            if gap_sec >= 60.0:
+                dt_steps = max(1.0, gap_sec / 1800.0)
 
         # 1. Base parameters
         prev = self.history[-1] if self.history else None
@@ -144,13 +147,21 @@ class StreamingFeatureExtractor:
         rh_med = float(np.median(rhs))
         p_med = float(np.median(presses))
 
-        t_mad = float(np.median([abs(x - t_med) for x in temps]))
-        rh_mad = float(np.median([abs(x - rh_med) for x in rhs]))
-        p_mad = float(np.median([abs(x - p_med) for x in presses]))
+        cur_t_diff = abs(temp - t_med)
+        cur_rh_diff = abs(rh - rh_med)
+        cur_p_diff = abs(press - p_med)
 
-        t_dev = round(abs(temp - t_med) / max(t_mad, 0.5), 3)
-        rh_dev = round(abs(rh - rh_med) / max(rh_mad, 1.0), 3)
-        p_dev = round(abs(press - p_med) / max(p_mad, 0.5), 3)
+        self.abs_diff_t.append(cur_t_diff)
+        self.abs_diff_rh.append(cur_rh_diff)
+        self.abs_diff_p.append(cur_p_diff)
+
+        t_mad = float(np.median(list(self.abs_diff_t)))
+        rh_mad = float(np.median(list(self.abs_diff_rh)))
+        p_mad = float(np.median(list(self.abs_diff_p)))
+
+        t_dev = round(cur_t_diff / max(t_mad, 0.5), 3)
+        rh_dev = round(cur_rh_diff / max(rh_mad, 1.0), 3)
+        p_dev = round(cur_p_diff / max(p_mad, 0.5), 3)
 
         # 5. Diurnal solar harmonics
         hr_frac = ts.hour + ts.minute / 60.0
@@ -172,6 +183,9 @@ class StreamingFeatureExtractor:
             "sin_hour": sin_hr,
             "cos_hour": cos_hr
         }
+
+
+compute_features = extract_features
 
 
 if __name__ == "__main__":
