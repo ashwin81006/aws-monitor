@@ -1,9 +1,11 @@
+import os
 import json
+import logging
 import joblib
 import numpy as np
 import pandas as pd
 from datetime import datetime
-from typing import Dict, Any, Tuple, List
+from typing import Dict, Any, Tuple, List, Optional
 
 from ..config import (
     SCALER_PATH,
@@ -14,20 +16,143 @@ from ..config import (
     TEMPORAL_THRESHOLDS_PATH,
 )
 from ..schemas.telemetry import TelemetryPointInput, TelemetryInferenceResponse
+from ...features.feature_builder import StreamingFeatureBuffer, ML_31_FEATURES
+from ...detection.core_detector import (
+    diagnose_point,
+    DEFAULT_CROSS_THRESHOLDS,
+    DEFAULT_TEMPORAL_THRESHOLDS,
+)
+
+logger = logging.getLogger("aws_monitor.inference")
 
 
 class InferenceService:
     def __init__(self):
-        self.scaler = joblib.load(SCALER_PATH)
-        self.medians = joblib.load(MEDIANS_PATH)
-        with open(FEATURE_COLS_PATH, "r") as f:
-            self.feature_columns = json.load(f)
-        self.model = joblib.load(IF_MODEL_PATH)
+        self.feature_columns: List[str] = list(ML_31_FEATURES)
+        self.model_version: str = "1.0.0-PROD"
+        self.artifact_source: str = IF_MODEL_PATH
+        self.is_demo_mode: bool = False
+        self.status: str = "INITIALIZING"
+        self.buffer = StreamingFeatureBuffer(window_size=9)
+        self.cross_thresh = dict(DEFAULT_CROSS_THRESHOLDS)
+        self.temporal_thresh = dict(DEFAULT_TEMPORAL_THRESHOLDS)
+        self._init_models_and_thresholds()
 
-        with open(CROSS_THRESHOLDS_PATH, "r") as f:
-            self.cross_thresh = json.load(f)
-        with open(TEMPORAL_THRESHOLDS_PATH, "r") as f:
-            self.temporal_thresh = json.load(f)
+    def _init_models_and_thresholds(self):
+        # 1. Load Thresholds
+        if os.path.exists(CROSS_THRESHOLDS_PATH):
+            try:
+                with open(CROSS_THRESHOLDS_PATH, "r") as f:
+                    self.cross_thresh = json.load(f)
+            except Exception as e:
+                logger.warning(f"Failed to load cross thresholds: {e}")
+
+        if os.path.exists(TEMPORAL_THRESHOLDS_PATH):
+            try:
+                with open(TEMPORAL_THRESHOLDS_PATH, "r") as f:
+                    self.temporal_thresh = json.load(f)
+            except Exception as e:
+                logger.warning(f"Failed to load temporal thresholds: {e}")
+
+        # 2. Load Production Artifacts
+        if (
+            os.path.exists(SCALER_PATH)
+            and os.path.exists(IF_MODEL_PATH)
+            and os.path.exists(FEATURE_COLS_PATH)
+        ):
+            try:
+                self.scaler = joblib.load(SCALER_PATH)
+                self.model = joblib.load(IF_MODEL_PATH)
+                with open(FEATURE_COLS_PATH, "r") as f:
+                    self.feature_columns = json.load(f)
+                self.medians = (
+                    joblib.load(MEDIANS_PATH)
+                    if os.path.exists(MEDIANS_PATH)
+                    else pd.Series(0.0, index=self.feature_columns)
+                )
+                self.is_demo_mode = False
+                self.status = "ONLINE"
+                self.model_version = "1.0.0-PROD (ISRO Junagadh AWS Trained)"
+                self.artifact_source = IF_MODEL_PATH
+                logger.info(
+                    f"Loaded verified production model artifacts from {IF_MODEL_PATH} "
+                    f"({len(self.feature_columns)} features)"
+                )
+                return
+            except Exception as ex:
+                logger.warning(f"Error loading production artifacts: {ex}. Initializing in-memory demo fallback.")
+
+        # Fallback to in-memory demo model
+        logger.info("Production model artifacts unavailable on disk. Initializing in-memory fallback mode.")
+        self._fit_ephemeral_demo_models()
+
+    def _fit_ephemeral_demo_models(self):
+        """
+        Creates an in-memory demo fallback model for quick testing/demo mode
+        WITHOUT modifying or overwriting production artifacts on disk.
+        Explicitly marked as DEMO mode.
+        """
+        from sklearn.ensemble import IsolationForest
+        from sklearn.preprocessing import RobustScaler
+
+        self.is_demo_mode = True
+        self.status = "DEGRADED"
+        self.model_version = "1.0.0-DEMO (In-Memory Ephemeral)"
+        self.artifact_source = "MEMORY_EPHEMERAL"
+
+        np.random.seed(42)
+        n_samples = 1500
+        t2 = np.random.normal(28.5, 4.0, n_samples)
+        t4 = t2 + np.random.normal(-0.3, 0.4, n_samples)
+        t8 = t4 + np.random.normal(-0.3, 0.4, n_samples)
+        rh2 = np.random.normal(65.0, 15.0, n_samples).clip(10, 100)
+        rh4 = rh2 + np.random.normal(1.2, 1.0, n_samples).clip(10, 100)
+        rh8 = rh4 + np.random.normal(1.0, 1.0, n_samples).clip(10, 100)
+        press = np.random.normal(998.4, 6.0, n_samples)
+        batt = np.random.normal(13.2, 0.4, n_samples).clip(11, 14.5)
+        wind = np.random.exponential(2.5, n_samples)
+        rain = np.zeros(n_samples)
+
+        data = {
+            "temp_2m": t2, "temp_4m": t4, "temp_8m": t8,
+            "rh_2m": rh2, "rh_4m": rh4, "rh_8m": rh8,
+            "pressure": press, "battery_voltage": batt,
+            "wind_speed_10m": wind, "rainfall": rain,
+            "diff_temp_2m_4m": t2 - t4, "diff_temp_4m_8m": t4 - t8, "diff_temp_2m_8m": t2 - t8,
+            "diff_rh_2m_4m": rh2 - rh4, "diff_rh_4m_8m": rh4 - rh8, "diff_rh_2m_8m": rh2 - rh8,
+            "rate_temp_2m": np.random.normal(0, 0.8, n_samples),
+            "rate_temp_4m": np.random.normal(0, 0.8, n_samples),
+            "rate_temp_8m": np.random.normal(0, 0.8, n_samples),
+            "rate_rh_2m": np.random.normal(0, 2.0, n_samples),
+            "rate_rh_4m": np.random.normal(0, 2.0, n_samples),
+            "rate_rh_8m": np.random.normal(0, 2.0, n_samples),
+            "rate_pressure": np.random.normal(0, 0.5, n_samples),
+            "rate_battery": np.random.normal(0, 0.05, n_samples),
+            "dev_temp_2m": np.abs(t2 - 28.5) / 5.0,
+            "dev_temp_4m": np.abs(t4 - 28.5) / 5.0,
+            "dev_temp_8m": np.abs(t8 - 28.5) / 5.0,
+            "dev_rh_2m": np.abs(rh2 - 60.0) / 20.0,
+            "dev_pressure": np.abs(press - 1005.0) / 10.0,
+            "solar_diurnal_sin": np.sin(np.linspace(0, 2 * np.pi, n_samples)),
+            "solar_diurnal_cos": np.cos(np.linspace(0, 2 * np.pi, n_samples)),
+        }
+        df_fit = pd.DataFrame(data)[self.feature_columns]
+
+        self.scaler = RobustScaler()
+        X_scaled = self.scaler.fit_transform(df_fit)
+        self.model = IsolationForest(n_estimators=100, contamination=0.05, random_state=42)
+        self.model.fit(X_scaled)
+        self.medians = df_fit.median()
+
+    def get_service_status(self) -> Dict[str, Any]:
+        return {
+            "status": self.status,
+            "is_demo_mode": self.is_demo_mode,
+            "model_version": self.model_version,
+            "artifact_source": self.artifact_source,
+            "features_count": len(self.feature_columns),
+            "features": self.feature_columns
+        }
 
     def infer_point(self, payload: TelemetryPointInput) -> TelemetryInferenceResponse:
         ts_str = payload.timestamp or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -36,250 +161,92 @@ class InferenceService:
         except Exception:
             dt = datetime.now()
 
-        hour = dt.hour + dt.minute / 60.0
-        sin_hour = np.sin(2 * np.pi * hour / 24.0)
-        cos_hour = np.cos(2 * np.pi * hour / 24.0)
-
-        # ----------------------------------------------------------------------
-        # 1. Build the 31 Clean Domain Features
-        # ----------------------------------------------------------------------
-        t2 = payload.temp_2m
-        t4 = payload.temp_4m
-        t8 = payload.temp_8m
-        rh2 = payload.rh_2m
-        rh4 = payload.rh_4m
-        rh8 = payload.rh_8m
-        press = payload.pressure
-        batt = payload.battery_voltage
-        wind = payload.wind_speed_10m or 0.0
-        rain = payload.rainfall or 0.0
-
-        # Vertical gradients
-        diff_t2_t4 = t2 - t4
-        diff_t4_t8 = t4 - t8
-        diff_t2_t8 = t2 - t8
-        diff_rh2_rh4 = rh2 - rh4
-        diff_rh4_rh8 = rh4 - rh8
-        diff_rh2_rh8 = rh2 - rh8
-
-        # 30-min rates of change
-        rate_t2 = (t2 - payload.prev_temp_2m) if payload.prev_temp_2m is not None else 0.0
-        rate_t4 = (t4 - payload.prev_temp_4m) if payload.prev_temp_4m is not None else 0.0
-        rate_t8 = (t8 - payload.prev_temp_8m) if payload.prev_temp_8m is not None else 0.0
-        rate_rh2 = (rh2 - payload.prev_rh_2m) if payload.prev_rh_2m is not None else 0.0
-        rate_rh4 = (rh4 - payload.prev_rh_4m) if payload.prev_rh_4m is not None else 0.0
-        rate_rh8 = (rh8 - payload.prev_rh_8m) if payload.prev_rh_8m is not None else 0.0
-        rate_press = (press - payload.prev_pressure) if payload.prev_pressure is not None else 0.0
-        rate_batt = (batt - payload.prev_battery_voltage) if payload.prev_battery_voltage is not None else 0.0
-
-        # Local robust deviations (z-scores relative to regional baselines)
-        dev_t2 = abs(t2 - 28.5) / 5.0
-        dev_t4 = abs(t4 - 28.5) / 5.0
-        dev_t8 = abs(t8 - 28.5) / 5.0
-        dev_rh2 = abs(rh2 - 60.0) / 20.0
-        dev_press = abs(press - 1005.0) / 10.0
-
-        feature_dict = {
-            "temp_2m": t2, "temp_4m": t4, "temp_8m": t8,
-            "rh_2m": rh2, "rh_4m": rh4, "rh_8m": rh8,
-            "pressure": press, "battery_voltage": batt,
-            "wind_speed_10m": wind, "rainfall": rain,
-            "diff_temp_2m_4m": diff_t2_t4,
-            "diff_temp_4m_8m": diff_t4_t8,
-            "diff_temp_2m_8m": diff_t2_t8,
-            "diff_rh_2m_4m": diff_rh2_rh4,
-            "diff_rh_4m_8m": diff_rh4_rh8,
-            "diff_rh_2m_8m": diff_rh2_rh8,
-            "rate_temp_2m": rate_t2,
-            "rate_temp_4m": rate_t4,
-            "rate_temp_8m": rate_t8,
-            "rate_rh_2m": rate_rh2,
-            "rate_rh_4m": rate_rh4,
-            "rate_rh_8m": rate_rh8,
-            "rate_pressure": rate_press,
-            "rate_battery": rate_batt,
-            "dev_temp_2m": dev_t2,
-            "dev_temp_4m": dev_t4,
-            "dev_temp_8m": dev_t8,
-            "dev_rh_2m": dev_rh2,
-            "dev_pressure": dev_press,
-            "solar_diurnal_sin": sin_hour,
-            "solar_diurnal_cos": cos_hour,
+        raw_dict = {
+            "temp_2m": payload.temp_2m,
+            "temp_4m": payload.temp_4m,
+            "temp_8m": payload.temp_8m,
+            "rh_2m": payload.rh_2m,
+            "rh_4m": payload.rh_4m,
+            "rh_8m": payload.rh_8m,
+            "pressure": payload.pressure,
+            "battery_voltage": payload.battery_voltage,
+            "wind_speed_10m": payload.wind_speed_10m or 0.0,
+            "rainfall": payload.rainfall or 0.0
         }
 
-        # Vector aligned with feature_columns
-        row_values = [feature_dict.get(c, self.medians.get(c, 0.0)) for c in self.feature_columns]
+        prev_dict = None
+        if payload.prev_temp_2m is not None:
+            prev_dict = {
+                "temp_2m": payload.prev_temp_2m,
+                "temp_4m": payload.prev_temp_4m if payload.prev_temp_4m is not None else payload.temp_4m,
+                "temp_8m": payload.prev_temp_8m if payload.prev_temp_8m is not None else payload.temp_8m,
+                "rh_2m": payload.prev_rh_2m if payload.prev_rh_2m is not None else payload.rh_2m,
+                "rh_4m": payload.prev_rh_4m if payload.prev_rh_4m is not None else payload.rh_4m,
+                "rh_8m": payload.prev_rh_8m if payload.prev_rh_8m is not None else payload.rh_8m,
+                "pressure": payload.prev_pressure if payload.prev_pressure is not None else payload.pressure,
+                "battery_voltage": payload.prev_battery_voltage if payload.prev_battery_voltage is not None else payload.battery_voltage
+            }
+
+        # 1. Compute 31 Causal Domain Features via shared StreamingFeatureBuffer
+        feat_dict = self.buffer.compute_point_features(raw_dict, ts=dt, prev_point=prev_dict)
+
+        # 2. Vectorize and Scale with RobustScaler
+        row_values = [feat_dict.get(c, self.medians.get(c, 0.0)) for c in self.feature_columns]
         X_df = pd.DataFrame([row_values], columns=self.feature_columns)
         X_scaled = pd.DataFrame(self.scaler.transform(X_df), columns=self.feature_columns)
 
-        # ----------------------------------------------------------------------
-        # 2. ML Isolation Forest Scoring
-        # ----------------------------------------------------------------------
+        # 3. Isolation Forest Inference
         raw_if_score = float(self.model.decision_function(X_scaled)[0])
         is_if_outlier = bool(self.model.predict(X_scaled)[0] == -1)
 
-        # ----------------------------------------------------------------------
-        # 3. Rule QC & Sentinel Detection
-        # ----------------------------------------------------------------------
-        rule_flags = []
-        fault_reasons = []
-        affected_sensors = []
-
-        is_sentinel = False
-        if press <= 0.0:
-            is_sentinel = True
-            rule_flags.append("SENTINEL_PRESSURE_ZERO")
-            fault_reasons.append("Atmospheric pressure reported 0.0 mbar sentinel")
-            affected_sensors.append("pressure")
-        elif press < 850.0 or press > 1080.0:
-            rule_flags.append("PHYSICAL_PRESSURE_LIMIT")
-            fault_reasons.append(f"Pressure {press:.1f} mbar violates tropospheric limits")
-            affected_sensors.append("pressure")
-
-        if batt <= 0.5:
-            is_sentinel = True
-            rule_flags.append("POWER_BLACKOUT")
-            fault_reasons.append(f"Battery voltage collapsed to {batt:.1f}V (total power loss)")
-            affected_sensors.append("battery_voltage")
-        elif batt < 10.5:
-            rule_flags.append("POWER_BROWNOUT")
-            fault_reasons.append(f"Battery undervoltage ({batt:.1f}V < 10.5V)")
-            affected_sensors.append("battery_voltage")
-
-        for s_name, val in [("temp_2m", t2), ("temp_4m", t4), ("temp_8m", t8)]:
-            if val == -40.0:
-                is_sentinel = True
-                rule_flags.append(f"SENTINEL_{s_name.upper()}")
-                fault_reasons.append(f"Sensor '{s_name}' reads -40.0°C open-circuit sentinel")
-                affected_sensors.append(s_name)
-            elif val < -5.0 or val > 55.0:
-                rule_flags.append(f"PHYSICAL_BOUND_{s_name.upper()}")
-                fault_reasons.append(f"Sensor '{s_name}' reads {val:.1f}°C outside regional physical limits")
-                affected_sensors.append(s_name)
-
-        if rain > 3000.0:
-            is_sentinel = True
-            rule_flags.append("RAINFALL_REGISTER_OVERFLOW")
-            fault_reasons.append(f"Rainfall {rain:.1f} mm exceeds physical gauge register")
-            affected_sensors.append("rainfall")
-
-        # ----------------------------------------------------------------------
-        # 4. Multi-Height Colocated Tower Consensus
-        # ----------------------------------------------------------------------
-        # Temperature 3-sensor consensus
-        pairs = [
-            (abs(t2 - t4), "temp_8m", t8, (t2 + t4) / 2.0, "temp_2m", "temp_4m"),
-            (abs(t4 - t8), "temp_2m", t2, (t4 + t8) / 2.0, "temp_4m", "temp_8m"),
-            (abs(t2 - t8), "temp_4m", t4, (t2 + t8) / 2.0, "temp_2m", "temp_8m"),
-        ]
-        pairs.sort(key=lambda x: x[0])
-        min_spread, outlier_s, outlier_v, consensus_v, s_ag1, s_ag2 = pairs[0]
-
-        severe_cross_temp = False
-        divergence_delta = 0.0
-        if min_spread <= 4.0:
-            divergence_delta = abs(outlier_v - consensus_v)
-            if divergence_delta >= 10.0:
-                severe_cross_temp = True
-                rule_flags.append("CROSS_SENSOR_SEVERE_DISAGREEMENT")
-                fault_reasons.append(
-                    f"Sensor '{outlier_s}' reads {outlier_v:.1f}°C, diverging by {divergence_delta:.1f}°C from colocated consensus"
-                )
-                affected_sensors.append(outlier_s)
-
-        # ----------------------------------------------------------------------
-        # 5. Temporal Rate & Isolated Jump
-        # ----------------------------------------------------------------------
-        temporal_spike = False
-        max_rate = max(abs(rate_t2), abs(rate_t4), abs(rate_t8))
-        if max_rate >= 15.0:
-            temporal_spike = True
-            rule_flags.append("TEMPORAL_SPIKE")
-            fault_reasons.append(f"Temporal step jump of {max_rate:.1f}°C in 30 minutes")
-
-        # ----------------------------------------------------------------------
-        # 6. Bayesian Evidence Fusion & Dynamic Classification
-        # ----------------------------------------------------------------------
-        score_rule = 1.0 if is_sentinel else (0.85 if rule_flags else 0.0)
-        score_cross = min(1.0, divergence_delta / 12.0) if severe_cross_temp else 0.0
-        score_temporal = 0.90 if temporal_spike else (0.50 if max_rate >= 8.0 else 0.0)
-        score_battery = 1.0 if batt <= 0.5 else (0.75 if batt < 10.5 else 0.0)
-        score_ml = max(0.0, -raw_if_score * 4.0) if raw_if_score < 0 else 0.0
-
-        # Noisy-OR combination
-        p_normal = (
-            (1.0 - score_rule * 0.95) *
-            (1.0 - score_cross * 0.90) *
-            (1.0 - score_temporal * 0.85) *
-            (1.0 - score_battery * 0.95) *
-            (1.0 - score_ml * 0.70)
+        # 4. Centralized Diagnosis & Bayesian Fusion Engine
+        diag = diagnose_point(
+            features=feat_dict,
+            raw_point=raw_dict,
+            ml_decision_score=raw_if_score,
+            is_ml_outlier=is_if_outlier,
+            cross_thresholds=self.cross_thresh,
+            temporal_thresholds=self.temporal_thresh
         )
-        fused_prob = round(float(1.0 - p_normal), 4)
 
-        # Decision mapping
-        if is_sentinel:
-            classification = "PROBABLE_SENSOR_FAULT"
-            confidence = 0.99
-            severity = "CRITICAL" if batt <= 0.5 else "HIGH"
-            root_cause = "INVALID_SENTINEL_READING"
-            explanation = f"Impossible hardware sentinel detected: {'; '.join(fault_reasons)}."
-        elif severe_cross_temp and temporal_spike:
-            classification = "PROBABLE_SENSOR_FAULT"
-            confidence = 0.98
-            severity = "HIGH"
-            root_cause = "SENSOR_SPIKE"
-            explanation = f"Sensor experienced a sharp transient jump of {max_rate:.1f}°C conflicting with colocated tower consensus."
-        elif batt <= 0.5 or (severe_cross_temp and batt < 10.5):
-            classification = "PROBABLE_SENSOR_FAULT"
-            confidence = 0.97
-            severity = "CRITICAL"
-            root_cause = "STATION_OR_POWER_FAILURE"
-            explanation = f"Sensor corrupted during station power failure (Battery: {batt:.1f}V)."
-        elif (t2 >= 44.0 or t4 >= 44.0 or t8 >= 44.0) and min_spread <= 2.5 and not severe_cross_temp and not temporal_spike:
-            classification = "POSSIBLE_WEATHER_EXTREME"
-            confidence = 0.90
-            severity = "MEDIUM"
-            root_cause = "RAPID_COHERENT_WEATHER_EVENT"
-            explanation = f"High regional temperature verified as genuine heatwave: multi-height towers agree within {min_spread:.1f}°C."
-        elif fused_prob >= 0.70:
-            classification = "PROBABLE_SENSOR_FAULT"
-            confidence = 0.92
-            severity = "HIGH"
-            root_cause = "SENSOR_OR_DATA_QUALITY"
-            explanation = f"Multiple independent fault signals confirm probable sensor malfunction: {'; '.join(fault_reasons)}."
-        elif fused_prob >= 0.40 or is_if_outlier:
-            classification = "UNCERTAIN"
-            confidence = 0.65
-            severity = "LOW"
-            root_cause = "STATISTICAL_MULTIVARIATE_OUTLIER"
-            explanation = f"Observation flagged as multivariate outlier (IF score: {raw_if_score:.3f}) without deterministic hardware failure."
-        else:
-            classification = "NORMAL"
-            confidence = 0.95
-            severity = "NONE"
-            root_cause = "NORMAL_OPERATION"
+        fused_score = diag["fused_anomaly_score"]
+        classification = diag["candidate_class"]
+        severity = diag["severity"]
+        root_cause = diag["probable_root_cause"]
+        target_sensor = diag["target_sensor"]
+        confidence = diag["confidence"]
+        rule_flags = diag["rule_flags"]
+
+        # Explanation string
+        if classification == "NORMAL":
             explanation = "Observation reading is within normal physical limits and consistent across multi-height towers."
+        elif classification == "POSSIBLE_WEATHER_EXTREME":
+            explanation = "Coherent multi-height temperature shift without tower lapse disagreement; verified benign extreme."
+        else:
+            explanation = f"Flagged as {classification} ({root_cause}) with fused score {fused_score:.3f}. Primary target: {target_sensor}."
+
+        affected = [target_sensor] if target_sensor not in ["NONE", "CORE_SENSORS", "CONSENSUS_ALL_HEIGHTS"] else ["NONE"]
 
         return TelemetryInferenceResponse(
             timestamp=ts_str,
             classification=classification,
-            anomaly_probability=fused_prob,
-            confidence=round(float(confidence), 2),
+            anomaly_probability=fused_score,
+            fused_anomaly_score=fused_score,
+            confidence=confidence,
             severity=severity,
             probable_root_cause=root_cause,
-            affected_sensors=list(set(affected_sensors)) if affected_sensors else ["NONE"],
+            root_cause=root_cause,
+            affected_sensors=affected,
             is_anomaly=classification != "NORMAL",
             if_score=round(raw_if_score, 4),
             if_outlier=is_if_outlier,
             evidence_breakdown={
-                "score_rule": score_rule,
-                "score_cross_consensus": score_cross,
-                "score_temporal": score_temporal,
-                "score_battery": score_battery,
-                "score_isolation_forest": round(score_ml, 4),
+                "score_rule": diag["score_rule"],
+                "score_cross_consensus": diag["score_cross"],
+                "score_temporal": diag["score_temporal"],
+                "score_isolation_forest": diag["score_ml"],
                 "rule_flags": rule_flags,
-                "multi_height_min_spread": round(min_spread, 2),
-                "divergence_delta": round(divergence_delta, 2),
+                "target_sensor": target_sensor,
             },
             explanation=explanation
         )

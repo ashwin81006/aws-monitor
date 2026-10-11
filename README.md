@@ -1,7 +1,5 @@
 # AWS Monitor: Intelligent Anomaly Detection for Automatic Weather Stations
 
-**Project Team:** G. ASHWIN SIVA (24PD11) | HARIHARAN. V (24PD14)
-
 An end-to-end, multi-layered anomaly detection and fault diagnosis system for Automatic Weather Stations (AWS), combining unsupervised machine learning, physical cross-sensor consistency validation, temporal dynamics, and domain rule quality control.
 
 ---
@@ -19,11 +17,11 @@ Raw AWS Telemetry (data/raw/aws_dataset.csv)
        │
        ▼
 [3] Feature Engineering (src/features/build_features.py)
-       │ ──► data/processed/aws_features.csv (156 features)
+       │ ──► data/processed/aws_features.csv (31 clean causal features)
        ▼
 [4] ML Data Prep & Scaling (src/ml/prepare_ml_data.py)
        │ ──► models/scaler.pkl, train_medians.pkl, ml_feature_columns.json
-       │ ──► data/processed/aws_train_scaled.csv & aws_test_scaled.csv
+       │ ──► data/processed/aws_train_scaled.csv & aws_test_scaled.csv (31 features)
        ▼
 [5-7] Unsupervised Model Training (src/ml/)
        │ ──► models/isolation_forest.pkl (Primary)
@@ -44,6 +42,9 @@ Raw AWS Telemetry (data/raw/aws_dataset.csv)
        ▼
 [15] Model Benchmarking Suite (src/ml/model_comparison.py)
        │ ──► data/processed/aws_model_comparison.csv & metrics_summary.json
+       ▼
+[16] Telemetry Explainability Suite (src/explainability/shap_explainer.py)
+       │ ──► reports/figures/ & aws_shap_global_importance.csv
 ```
 
 ---
@@ -60,9 +61,9 @@ intelligent-anomaly-detection-for-automatic-weather-stations/
 │   │   └── aws_dataset.csv                   # Raw historical telemetry (23,807 rows)
 │   └── processed/
 │       ├── aws_clean.csv                     # Cleaned dataset with quality flags
-│       ├── aws_features.csv                  # 156 engineered features
-│       ├── aws_train_scaled.csv              # Scaled training split (16,664 rows, 112 features)
-│       ├── aws_test_scaled.csv               # Scaled test split (7,143 rows, 112 features)
+│       ├── aws_features.csv                  # 31 engineered causal features
+│       ├── aws_train_scaled.csv              # Scaled training split (16,664 rows, 31 features)
+│       ├── aws_test_scaled.csv               # Scaled test split (7,143 rows, 31 features)
 │       ├── aws_evidence_matrix.csv           # Multi-source fused evidence matrix
 │       ├── aws_event_fusion.csv              # Clustered events with severity & root cause
 │       ├── aws_fault_labels.csv              # Validation ground truth fault labels
@@ -76,12 +77,12 @@ intelligent-anomaly-detection-for-automatic-weather-stations/
 │       └── aws_model_comparison_metrics.json # Full benchmark metrics JSON
 │
 ├── models/
-│   ├── isolation_forest.pkl                  # Primary unsupervised detector (982 KB)
-│   ├── lof_model.pkl                         # Benchmark density detector (17.4 MB)
-│   ├── ocsvm_model.pkl                       # Benchmark margin detector (163 KB)
+│   ├── isolation_forest.pkl                  # Primary unsupervised detector
+│   ├── lof_model.pkl                         # Benchmark density detector
+│   ├── ocsvm_model.pkl                       # Benchmark margin detector
 │   ├── scaler.pkl                            # Fitted RobustScaler
 │   ├── train_medians.pkl                     # Training reference medians for imputation
-│   ├── ml_feature_columns.json               # Schema of 112 ML feature names
+│   ├── ml_feature_columns.json               # Schema of 31 ML feature names
 │   ├── cross_sensor_thresholds.json          # Empirical 99th percentile spread thresholds
 │   └── temporal_thresholds.json              # Empirical 99th percentile rate thresholds
 │
@@ -129,7 +130,7 @@ pip install pandas numpy scikit-learn joblib
 
 ### 2. Complete End-to-End Pipeline
 
-Run all 15 stages with a single command:
+Run all 16 stages with a single command:
 
 ```powershell
 python -u run_pipeline.py
@@ -162,17 +163,17 @@ The pipeline executes sequentially:
 | **Dataset Inspection** | Data Structure & Gaps | Structure, timestamps, sensors, gap profiling | ✅ Complete |
 | **Data Cleaning** | Quality Preprocessing | Sentinels (-40, -312, -100), timestamps, quality flags | ✅ Complete |
 | **Exploratory Analysis** | Statistical Profiling | Sensor distributions, physical range checks, correlations | ✅ Complete |
-| **Feature Engineering** | Dynamic Telemetry Signals | 156 features: temporal, cross-sensor spread, rolling, repetition | ✅ Complete |
-| **ML Data Preparation** | Leakage-Free Normalization | 112 features, 70/30 split, training imputation, RobustScaler | ✅ Complete |
+| **Feature Engineering** | Dynamic Telemetry Signals | 31 clean causal features: base, gradient, rate, causal dispersion, diurnal | ✅ Complete |
+| **ML Data Preparation** | Leakage-Free Normalization | 31 features, 70/30 split, training imputation, RobustScaler | ✅ Complete |
 | **Initial Detection Engine** | Heuristic & Unsupervised ML | Isolation Forest, rule engine, empirical percentile thresholds | ✅ Complete |
 | **Evidence Fusion** | Multi-Stream Integration | Multi-evidence matrix, temporal clustering, root cause, severity | ✅ Complete |
 | **Controlled Validation** | Precision & Latency Verification| Synthetic faults (spikes, drifts, frozen, outages), precision/recall | ✅ Complete |
 | **Model Comparison** | Architecture Benchmarking | Rigorous comparison: IF vs LOF vs OC-SVM across throughput & accuracy | ✅ Complete |
 | **Fusion Improvements** | Multi-Layer Evidence Tuning | Bayesian Noisy-OR, continuous sub-scores, dynamic confidence | ✅ Complete |
 | **Explainability** | Diagnostic Explanations | SHAP TreeExplainer, feature importance, event waterfall plots | ✅ Complete |
-| **Inference API** | Real-Time Serving | FastAPI real-time scoring and batch anomaly endpoints | ⏳ Next |
-| **Telemetry Dashboard** | Visual Operations Console | Interactive telemetry, fault events, station health & charts | ⏳ |
-| **Production Validation** | System Hardening | End-to-end integration testing, system benchmarks, demo readiness | ⏳ |
+| **Inference API** | Real-Time Serving | FastAPI real-time scoring and batch anomaly endpoints | ✅ Complete |
+| **Telemetry Dashboard** | Visual Operations Console | .NET MAUI cross-platform operations console & diagnostics | ✅ Complete |
+| **Production Validation** | System Hardening | Causal feature unification, event metric repair, model selection | ✅ Complete |
 
 ---
 

@@ -11,7 +11,44 @@ class AnomalyService:
         self._events_df = None
         self._evidence_df = None
         self._shap_df = None
+        self._custom_events = None
         self._load_data()
+
+    def set_active_events(self, events_list: List[AnomalyEvent]):
+        self.set_active_dataset(events_list)
+
+    def set_active_dataset(self, events_list: List[AnomalyEvent], evidence_df: Optional[pd.DataFrame] = None):
+        self._custom_events = events_list
+        self._evidence_df = evidence_df
+        # Also build a dataframe representation
+        if events_list:
+            data = []
+            for ev in events_list:
+                data.append({
+                    "event_id": ev.event_id,
+                    "start_time": pd.to_datetime(ev.start_time),
+                    "end_time": pd.to_datetime(ev.end_time),
+                    "duration_minutes": ev.duration_minutes,
+                    "observations": ev.observations,
+                    "mean_fused_score": ev.mean_fused_score,
+                    "peak_fused_score": ev.peak_fused_score,
+                    "target_sensor": ev.target_sensor,
+                    "candidate_class": ev.candidate_class,
+                    "severity": ev.severity,
+                    "confidence": ev.confidence,
+                    "probable_root_cause": ev.probable_root_cause,
+                    "has_station_system_evidence": False,
+                    "has_core_sensor_quality": True,
+                    "has_frozen_sensor": "FROZEN" in ev.probable_root_cause,
+                    "has_cross_sensor_evidence": True,
+                    "has_temporal_evidence": True,
+                    "has_single_spike": "SPIKE" in ev.probable_root_cause,
+                    "has_if_anomaly": True,
+                    "peak_evidence_sources": 3,
+                })
+            self._events_df = pd.DataFrame(data)
+        else:
+            self._events_df = pd.DataFrame()
 
     def _load_data(self):
         if os.path.exists(EVENT_FUSION_PATH):

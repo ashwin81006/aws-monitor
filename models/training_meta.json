@@ -1,0 +1,20 @@
+{
+  "Isolation Forest": {
+    "fit_time_sec": 0.4198,
+    "n_samples": 16664,
+    "n_features": 31,
+    "timestamp": "2026-10-11T15:00:44.164805"
+  },
+  "Local Outlier Factor": {
+    "fit_time_sec": 2.5171,
+    "n_samples": 16664,
+    "n_features": 31,
+    "timestamp": "2026-10-11T15:00:52.306913"
+  },
+  "One-Class SVM": {
+    "fit_time_sec": 0.3818,
+    "n_samples": 16664,
+    "n_features": 31,
+    "timestamp": "2026-10-11T15:00:57.858767"
+  }
+}

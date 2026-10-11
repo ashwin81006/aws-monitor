@@ -1,24 +1,25 @@
 {
-    "total_explained_events": 937,
+    "total_explained_events": 899,
     "primary_ml_drivers_breakdown": {
-        "rainfall": 836,
-        "dev_pressure": 79,
-        "dev_temp_2m": 10,
-        "dev_rh_2m": 5,
-        "dev_temp_4m": 4,
-        "dev_temp_8m": 1,
+        "rainfall": 861,
+        "dev_rh_2m": 17,
+        "dev_temp_4m": 9,
+        "dev_temp_8m": 7,
+        "diff_rh_2m_8m": 1,
+        "dev_pressure": 1,
         "rate_pressure": 1,
+        "rate_temp_4m": 1,
         "wind_speed_10m": 1
     },
     "target_sensor_breakdown": {
-        "CORE_SENSORS": 482,
-        "CONSENSUS_ALL_HEIGHTS": 136,
-        "DATA_LOGGER_COMMUNICATION": 127,
-        "MULTIVARIATE_VECTOR": 61,
-        "RELATIVE_HUMIDITY3": 58,
+        "CORE_SENSORS": 492,
+        "CONSENSUS_ALL_HEIGHTS": 149,
+        "DATA_LOGGER_COMMUNICATION": 118,
+        "RELATIVE_HUMIDITY3": 59,
         "RELATIVE_HUMIDITY1": 30,
         "RELATIVE_HUMIDITY2": 15,
         "AIR_TEMPERATURE3": 11,
+        "MULTIVARIATE_VECTOR": 8,
         "AIR_TEMPERATURE2": 8,
         "STATION_POWER_SYSTEM": 6,
         "AIR_TEMPERATURE1": 3
@@ -29,35 +30,35 @@
             "target_sensor": "CORE_SENSORS",
             "candidate_class": "PROBABLE_SENSOR_FAULT",
             "probable_root_cause": "SENSOR_OR_DATA_QUALITY",
-            "diagnostic_explanation": "Anomaly driven by: rainfall (val: 1026.0, SHAP: +1.722); solar_diurnal_sin (val: 0.866, SHAP: +0.069); rh_4m (val: nan, SHAP: +0.002)"
+            "diagnostic_explanation": "Anomaly driven by: rainfall (val: 1026.0, SHAP: +1.494); solar_diurnal_sin (val: 0.866, SHAP: +0.088); dev_temp_8m (val: 0.0, SHAP: +0.066)"
         },
         {
             "event_id": 2,
             "target_sensor": "CORE_SENSORS",
             "candidate_class": "PROBABLE_SENSOR_FAULT",
             "probable_root_cause": "SENSOR_OR_DATA_QUALITY",
-            "diagnostic_explanation": "Anomaly driven by: rainfall (val: 1026.0, SHAP: +1.643); solar_diurnal_sin (val: 0.9914, SHAP: +0.145); rh_4m (val: 90.8, SHAP: +0.076)"
+            "diagnostic_explanation": "Anomaly driven by: rainfall (val: 1026.0, SHAP: +1.608); solar_diurnal_sin (val: 0.9914, SHAP: +0.240); rh_4m (val: 90.8, SHAP: +0.102)"
         },
         {
             "event_id": 3,
             "target_sensor": "CORE_SENSORS",
             "candidate_class": "PROBABLE_SENSOR_FAULT",
             "probable_root_cause": "SENSOR_OR_DATA_QUALITY",
-            "diagnostic_explanation": "Anomaly driven by: rainfall (val: 1026.0, SHAP: +1.836); rate_battery (val: 0.3, SHAP: +0.124); solar_diurnal_sin (val: 0.7934, SHAP: +0.086)"
+            "diagnostic_explanation": "Anomaly driven by: rainfall (val: 1026.0, SHAP: +1.272); dev_temp_8m (val: 5.7332, SHAP: +0.528); dev_pressure (val: 2.4731, SHAP: +0.375)"
         },
         {
             "event_id": 4,
             "target_sensor": "CORE_SENSORS",
             "candidate_class": "PROBABLE_SENSOR_FAULT",
             "probable_root_cause": "SENSOR_OR_DATA_QUALITY",
-            "diagnostic_explanation": "Anomaly driven by: rainfall (val: 1026.0, SHAP: +1.567); dev_pressure (val: 0.7, SHAP: +0.658); rate_rh_8m (val: -4.8, SHAP: +0.075)"
+            "diagnostic_explanation": "Anomaly driven by: rainfall (val: 1026.0, SHAP: +1.340); dev_temp_4m (val: 5.6272, SHAP: +0.892); dev_temp_8m (val: 3.4951, SHAP: +0.200)"
         },
         {
             "event_id": 5,
             "target_sensor": "CORE_SENSORS",
             "candidate_class": "PROBABLE_SENSOR_FAULT",
             "probable_root_cause": "SENSOR_OR_DATA_QUALITY",
-            "diagnostic_explanation": "Anomaly driven by: rainfall (val: 1026.0, SHAP: +1.606); dev_pressure (val: 1.0117, SHAP: +1.262); wind_speed_10m (val: 0.4, SHAP: +0.124)"
+            "diagnostic_explanation": "Anomaly driven by: rainfall (val: 1026.0, SHAP: +1.492); rh_4m (val: 86.4, SHAP: +0.118); wind_speed_10m (val: 0.3, SHAP: +0.081)"
         }
     ]
 }

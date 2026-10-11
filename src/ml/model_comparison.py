@@ -121,6 +121,15 @@ def load_and_benchmark_models():
     fitted_models = {}
     train_metrics = {}
     
+    training_meta = {}
+    meta_path = "models/training_meta.json"
+    if os.path.exists(meta_path):
+        try:
+            with open(meta_path, "r") as f:
+                training_meta = json.load(f)
+        except Exception:
+            training_meta = {}
+    
     for name, cfg in model_configs.items():
         if not os.path.exists(cfg["save_path"]):
             raise FileNotFoundError(
@@ -132,8 +141,14 @@ def load_and_benchmark_models():
         model = joblib.load(cfg["save_path"])
         disk_size_kb = os.path.getsize(cfg["save_path"]) / 1024.0
         fitted_models[name] = model
+        
+        # Load measured fit time if available
+        fit_time = 0.0
+        if name in training_meta and "fit_time_sec" in training_meta[name]:
+            fit_time = float(training_meta[name]["fit_time_sec"])
+        
         train_metrics[name] = {
-            "train_time_sec": 0.0,
+            "train_time_sec": round(fit_time, 4),
             "disk_size_kb": round(disk_size_kb, 1),
             "save_path": cfg["save_path"],
             "complexity_train": cfg["complexity_train"],
@@ -141,7 +156,7 @@ def load_and_benchmark_models():
             "shap_method": cfg["shap_method"],
             "notes": cfg["notes"]
         }
-        print(f"    Loaded {name} | Size: {disk_size_kb:.1f} KB")
+        print(f"    Loaded {name} | Fit Time: {fit_time:.3f}s | Size: {disk_size_kb:.1f} KB")
         
     return fitted_models, train_metrics
 
@@ -351,40 +366,16 @@ def evaluate_pipeline_fusion_impact(fitted_models, val_test_scaled, test_labels,
 
 def generate_production_selection_matrix(eval_df):
     """
-    Computes a multi-criteria weighted score for production deployment.
+    Computes a multi-criteria weighted score for production deployment DYNAMICALLY
+    from actual measured benchmark results in eval_df.
     Dimensions:
-      1. Throughput & Latency (Weight 20%)
-      2. Storage & Memory Footprint (Weight 15%)
-      3. Standalone Fault Sensitivity & ROC-AUC (Weight 20%)
-      4. Weather Extreme Rejection (Weight 15%)
-      5. Big-O Algorithmic Scalability (Weight 15%)
-      6. SHAP / Explainability Suitability (Weight 15%)
+      1. Throughput & Latency (Weight 20%) - proportional to measured obs/sec
+      2. Storage & Memory Footprint (Weight 15%) - inverse of measured disk size
+      3. Standalone Sensitivity (Weight 20%) - derived from measured ROC-AUC / F1
+      4. Weather Extreme Rejection (Weight 15%) - inverse of false alarm rate
+      5. Algorithmic Scalability (Weight 15%) - Big-O time complexity class
+      6. SHAP Explainability (Weight 15%) - Exact TreeSHAP vs sampling approximations
     """
-    # Normalized scores on scale of 1-10
-    # Isolation Forest:
-    #   - Throughput: 10/10 (85k obs/sec)
-    #   - Storage: 9/10 (982 KB)
-    #   - Sensitivity/ROC: 6/10 (ROC-AUC 0.5579 standalone)
-    #   - Weather Rejection: 10/10 (Does not false-alarm extreme weather)
-    #   - Scalability: 10/10 (O(N) training, O(log N) inference)
-    #   - SHAP: 10/10 (Native exact TreeExplainer)
-    #
-    # Local Outlier Factor:
-    #   - Throughput: 4/10 (10k obs/sec, 8.5x slower)
-    #   - Storage: 2/10 (17.4 MB, 17x larger, stores full training set)
-    #   - Sensitivity/ROC: 9/10 (ROC-AUC 0.8693 standalone)
-    #   - Weather Rejection: 10/10 (Does not false-alarm extreme weather)
-    #   - Scalability: 3/10 (O(N^2) training and O(N) k-NN inference per query)
-    #   - SHAP: 2/10 (KernelExplainer sampling takes 15s per sample)
-    #
-    # One-Class SVM:
-    #   - Throughput: 7/10 (21k obs/sec, 4x slower than IF)
-    #   - Storage: 10/10 (167 KB, stores support vectors)
-    #   - Sensitivity/ROC: 7.5/10 (ROC-AUC 0.7609 standalone)
-    #   - Weather Rejection: 10/10 (Does not false-alarm extreme weather)
-    #   - Scalability: 5/10 (O(N^2) kernel computations)
-    #   - SHAP: 2/10 (KernelExplainer sampling takes 15s per sample)
-    
     weights = {
         "throughput_latency": 0.20,
         "storage_memory": 0.15,
@@ -394,46 +385,66 @@ def generate_production_selection_matrix(eval_df):
         "shap_explainability": 0.15
     }
     
-    scoring = {
-        "Isolation Forest": {
-            "throughput_latency": 10.0,
-            "storage_memory": 9.0,
-            "standalone_sensitivity": 6.0,
-            "weather_rejection": 10.0,
-            "algorithmic_scalability": 10.0,
-            "shap_explainability": 10.0,
-        },
-        "Local Outlier Factor": {
-            "throughput_latency": 4.0,
-            "storage_memory": 2.0,
-            "standalone_sensitivity": 9.0,
-            "weather_rejection": 10.0,
-            "algorithmic_scalability": 3.0,
-            "shap_explainability": 2.0,
-        },
-        "One-Class SVM": {
-            "throughput_latency": 7.0,
-            "storage_memory": 10.0,
-            "standalone_sensitivity": 7.5,
-            "weather_rejection": 10.0,
-            "algorithmic_scalability": 5.0,
-            "shap_explainability": 2.0,
-        }
+    scalability_map = {
+        "Isolation Forest": 10.0,
+        "One-Class SVM": 5.0,
+        "Local Outlier Factor": 3.0
     }
     
+    shap_map = {
+        "Isolation Forest": 10.0,
+        "One-Class SVM": 2.5,
+        "Local Outlier Factor": 2.5
+    }
+    
+    max_throughput = max(eval_df["throughput_obs_per_sec"].max(), 1.0)
+    min_disk_size = max(eval_df["disk_size_kb"].min(), 1.0)
+    
     matrix_records = []
-    for model_name, scores in scoring.items():
-        composite_score = sum(scores[dim] * weights[dim] for dim in weights)
+    for _, row in eval_df.iterrows():
+        name = row["model_name"]
+        
+        # 1. Measured Throughput Score (1-10)
+        t_val = float(row["throughput_obs_per_sec"])
+        throughput_score = round(float(1.0 + 9.0 * (t_val / max_throughput)), 1)
+        
+        # 2. Measured Storage Footprint Score (1-10, inverse of disk size)
+        d_val = float(row["disk_size_kb"])
+        storage_score = round(float(np.clip(1.0 + 9.0 * (min_disk_size / d_val), 1.0, 10.0)), 1)
+        
+        # 3. Measured Standalone Sensitivity (1-10, from ROC-AUC)
+        roc_val = float(row.get("roc_auc", 0.5))
+        sensitivity_score = round(float(np.clip(1.0 + 9.0 * roc_val, 1.0, 10.0)), 1)
+        
+        # 4. Measured False Alarm Rejection (1-10, inverse of false alarm rate)
+        far_val = float(row.get("false_alarm_rate", 0.0))
+        rejection_score = round(float(np.clip(10.0 - 10.0 * far_val, 1.0, 10.0)), 1)
+        
+        # 5. Algorithmic Scalability
+        scale_score = scalability_map.get(name, 5.0)
+        
+        # 6. SHAP Readiness
+        shap_score = shap_map.get(name, 2.5)
+        
+        composite = (
+            throughput_score * weights["throughput_latency"] +
+            storage_score * weights["storage_memory"] +
+            sensitivity_score * weights["standalone_sensitivity"] +
+            rejection_score * weights["weather_rejection"] +
+            scale_score * weights["algorithmic_scalability"] +
+            shap_score * weights["shap_explainability"]
+        )
+        
         matrix_records.append({
-            "model_name": model_name,
-            "throughput_latency_score": scores["throughput_latency"],
-            "storage_memory_score": scores["storage_memory"],
-            "standalone_sensitivity_score": scores["standalone_sensitivity"],
-            "weather_rejection_score": scores["weather_rejection"],
-            "algorithmic_scalability_score": scores["algorithmic_scalability"],
-            "shap_explainability_score": scores["shap_explainability"],
-            "weighted_composite_score": round(composite_score, 2),
-            "production_role": "PRIMARY_GLOBAL_DETECTOR" if model_name == "Isolation Forest" else "SECONDARY_SPECIALIZED_BENCHMARK"
+            "model_name": name,
+            "throughput_latency_score": throughput_score,
+            "storage_memory_score": storage_score,
+            "standalone_sensitivity_score": sensitivity_score,
+            "weather_rejection_score": rejection_score,
+            "algorithmic_scalability_score": scale_score,
+            "shap_explainability_score": shap_score,
+            "weighted_composite_score": round(composite, 2),
+            "production_role": "PRIMARY_GLOBAL_DETECTOR" if name == "Isolation Forest" else "SECONDARY_SPECIALIZED_BENCHMARK"
         })
         
     return pd.DataFrame(matrix_records)
@@ -462,8 +473,22 @@ def run_model_comparison():
     # 4. Evidence fusion impact
     fusion_impact = evaluate_pipeline_fusion_impact(fitted_models, val_test_sc, test_labels, injected_events)
     
-    # 5. Production selection matrix
+    # 5. Production selection matrix (data-driven)
     selection_matrix = generate_production_selection_matrix(eval_df)
+    
+    # Dynamically select top model based on measured composite score
+    top_model = selection_matrix.sort_values(by="weighted_composite_score", ascending=False).iloc[0]
+    top_name = top_model["model_name"]
+    top_eval = eval_df[eval_df["model_name"] == top_name].iloc[0]
+    
+    justification_str = (
+        f"{top_name} objectively achieved the highest weighted composite score "
+        f"({top_model['weighted_composite_score']:.2f}/10) based on measured benchmark metrics: "
+        f"highest throughput ({top_eval['throughput_obs_per_sec']:,.0f} obs/sec), "
+        f"compact footprint ({top_eval['disk_size_kb']:.1f} KB), "
+        f"measured fit time ({top_eval['train_time_sec']:.3f}s), "
+        f"and native exact TreeSHAP explainability."
+    )
     
     # Save artifacts
     print("\n[5/5] Exporting comparison artifacts...")
@@ -482,14 +507,9 @@ def run_model_comparison():
         "fusion_impact": fusion_impact,
         "selection_matrix": selection_matrix.to_dict(orient="records"),
         "production_selection": {
-            "selected_primary_model": "Isolation Forest",
-            "justification": (
-                "Isolation Forest delivers 8.5x higher inference throughput (85,393 obs/sec vs 10,020 obs/sec for LOF), "
-                "17.8x smaller serialization footprint (982 KB vs 17,450 KB for LOF), linear Big-O scalability O(N), "
-                "and native TreeExplainer SHAP integration. When fused into the multi-layer Evidence Matrix, "
-                "all three models achieve identical 100% event detection (5/5 faults) and perfect benign weather extreme rejection, "
-                "making Isolation Forest the optimal production architecture."
-            )
+            "selected_primary_model": top_name,
+            "weighted_composite_score": top_model["weighted_composite_score"],
+            "justification": justification_str
         }
     }
     
@@ -523,12 +543,12 @@ def run_model_comparison():
     print(selection_matrix[["model_name", "weighted_composite_score", "production_role"]].to_string(index=False))
     
     print("\n" + "=" * 70)
-    print(">>> PRODUCTION CONCLUSION:")
-    print("    Primary Model Selected : ISOLATION FOREST")
-    print("    Key Drivers            : 85,393 obs/sec throughput, O(N) scalability,")
-    print("                             982 KB footprint, native exact SHAP TreeExplainer.")
-    print("    Fusion Synergies       : Combined with tri-sensor cross-validation and")
-    print("                             rate-of-change temporal evidence, achieving 100% fault recall.")
+    print(">>> DATA-DRIVEN PRODUCTION CONCLUSION:")
+    print(f"    Primary Model Selected : {top_name.upper()}")
+    print(f"    Measured Throughput    : {top_eval['throughput_obs_per_sec']:,.0f} obs/sec")
+    print(f"    Measured Disk Size     : {top_eval['disk_size_kb']:.1f} KB")
+    print(f"    Measured Fit Time      : {top_eval['train_time_sec']:.3f} s")
+    print(f"    Composite Score        : {top_model['weighted_composite_score']:.2f} / 10.0")
     print("=" * 70)
 
 

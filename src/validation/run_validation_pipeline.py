@@ -6,6 +6,8 @@ import numpy as np
 from sklearn.ensemble import IsolationForest
 
 
+from src.features.feature_builder import compute_31_features_df
+
 FAULTY_CLEAN = "data/processed/aws_faulty_clean.csv"
 TEST_READY_OUT = "data/processed/aws_validation_test_ready.csv"
 EVIDENCE_MATRIX_OUT = "data/processed/aws_validation_evidence_matrix.csv"
@@ -24,71 +26,11 @@ def run_validation_pipeline(model_name="isolation_forest"):
     print("=" * 60)
 
     # ----------------------------------------------------
-    # 1. Feature Engineering (31 Clean Domain Features)
+    # 1. Feature Engineering (31 Clean Causal Domain Features)
     # ----------------------------------------------------
-    print("\n[1/6] Building 31 clean domain features on fault-injected dataset...")
-    df = pd.read_csv(FAULTY_CLEAN)
-    df["timestamp"] = pd.to_datetime(df["timestamp"])
-    df = df.sort_values("timestamp").reset_index(drop=True)
-
-    COLUMN_MAP = {
-        "temp_2m": "AIR_TEMPERATURE1(°C at 2m height)",
-        "temp_4m": "AIR_TEMPERATURE2(°C at 4m height)",
-        "temp_8m": "AIR_TEMPERATURE3(°C at 8m height)",
-        "rh_2m": "RELATIVE_HUMIDITY1(% at 2m height)",
-        "rh_4m": "RELATIVE_HUMIDITY2(% at 4m height)",
-        "rh_8m": "RELATIVE_HUMIDITY3(% at 8m height)",
-        "wind_speed_3m": "WIND_SPEED1(m/s at 3m height) ",
-        "wind_speed_6m": "WIND_SPEED2(m/s at 6m height)",
-        "wind_speed_10m": "WIND_SPEED3(m/s at 10m height)",
-        "wind_dir_3m": "WIND_DIRECTION1(deg at 3m height)",
-        "wind_dir_6m": "WIND_DIRECTION2(deg at 6m height)",
-        "wind_dir_10m": "WIND_DIRECTION3(deg at 10m height)",
-        "pressure": "ATMOSPHERIC_PRESSURE(mbar) ",
-        "battery_voltage": "BATTRY_VOLTAGE(V)",
-        "rainfall": "RAINFALL(mm)",
-    }
-    for alias, raw_col in COLUMN_MAP.items():
-        if alias not in df.columns and raw_col in df.columns:
-            df[alias] = pd.to_numeric(df[raw_col], errors="coerce")
-
-    if "time_gap_minutes" not in df.columns:
-        df["time_gap_minutes"] = df["timestamp"].diff().dt.total_seconds() / 60.0
-
-    # 1. Base (10)
-    # 2. Vertical gradients (6)
-    df["diff_temp_2m_4m"] = df["temp_2m"] - df["temp_4m"]
-    df["diff_temp_4m_8m"] = df["temp_4m"] - df["temp_8m"]
-    df["diff_temp_2m_8m"] = df["temp_2m"] - df["temp_8m"]
-    df["diff_rh_2m_4m"] = df["rh_2m"] - df["rh_4m"]
-    df["diff_rh_4m_8m"] = df["rh_4m"] - df["rh_8m"]
-    df["diff_rh_2m_8m"] = df["rh_2m"] - df["rh_8m"]
-
-    # 3. Temporal 30-min rates (8)
-    continuous_mask = (df["time_gap_minutes"] <= 60.0) & (df["time_gap_minutes"] > 0)
-    for rate_name, base_col in [
-        ("rate_temp_2m", "temp_2m"), ("rate_temp_4m", "temp_4m"), ("rate_temp_8m", "temp_8m"),
-        ("rate_rh_2m", "rh_2m"), ("rate_rh_4m", "rh_4m"), ("rate_rh_8m", "rh_8m"),
-        ("rate_pressure", "pressure"), ("rate_battery", "battery_voltage")
-    ]:
-        diff_val = df[base_col].diff()
-        df[rate_name] = np.where(continuous_mask, diff_val / (df["time_gap_minutes"] / 30.0), np.nan)
-
-    # 4. Robust rolling deviations (5)
-    window_size = 9
-    for dev_name, base_col in [
-        ("dev_temp_2m", "temp_2m"), ("dev_temp_4m", "temp_4m"), ("dev_temp_8m", "temp_8m"),
-        ("dev_rh_2m", "rh_2m"), ("dev_pressure", "pressure")
-    ]:
-        med = df[base_col].rolling(window=window_size, min_periods=3, center=True).median()
-        abs_dev = np.abs(df[base_col] - med)
-        mad = abs_dev.rolling(window=window_size, min_periods=3, center=True).median() * 1.4826
-        df[dev_name] = np.where(mad > 1e-4, abs_dev / mad, abs_dev)
-
-    # 5. Diurnal solar harmonics (2)
-    hours = df["timestamp"].dt.hour + df["timestamp"].dt.minute / 60.0
-    df["solar_diurnal_sin"] = np.sin(2 * np.pi * hours / 24.0)
-    df["solar_diurnal_cos"] = np.cos(2 * np.pi * hours / 24.0)
+    print("\n[1/6] Building 31 clean causal domain features on fault-injected dataset...")
+    raw_faulty = pd.read_csv(FAULTY_CLEAN)
+    df = compute_31_features_df(raw_faulty, window_size=9)
 
     # ----------------------------------------------------
     # 2. Extract Test Split & ML Model Inference

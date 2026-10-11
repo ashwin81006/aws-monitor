@@ -10,12 +10,15 @@ router = APIRouter(prefix="/api/v1/explainability", tags=["Model Explainability 
 
 
 @router.get("/global-importance", response_model=ShapGlobalImportanceResponse)
+@router.get("/shap")
+@router.get("/summary")
 def get_global_feature_importance():
     """
     Returns global feature importance rankings computed across the anomaly cohort by TreeSHAP.
     Formatted for horizontal bar and ranking charts in LiveCharts2 and Recharts.
     """
     return explainability_service.get_global_importance()
+
 
 
 @router.get("/events/{event_id}", response_model=ShapEventExplanationResponse)

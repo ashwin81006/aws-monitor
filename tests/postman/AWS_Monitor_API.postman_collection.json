@@ -1,0 +1,230 @@
+{
+  "info": {
+    "name": "AWS Monitor - Intelligent Anomaly Detection API",
+    "_postman_id": "8c7d8123-aws-monitor-api-v1",
+    "description": "Production-grade automated test collection for AWS Monitor REST API.\nAuthors: G. Ashwin Siva (24PD11) & Hariharan. V (24PD14)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8000",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Health & Metadata",
+      "item": [
+        {
+          "name": "GET System Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Service is online', function () { var jsonData = pm.response.json(); pm.expect(jsonData.status).to.eql('ONLINE'); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET Station Summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/station/summary",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "station", "summary"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Station summary has observations', function () { var jsonData = pm.response.json(); pm.expect(jsonData.total_observations).to.be.above(0); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Telemetry & Streaming Inference",
+      "item": [
+        {
+          "name": "GET Telemetry History",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/telemetry/history?downsample_factor=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "telemetry", "history"],
+              "query": [
+                {
+                  "key": "downsample_factor",
+                  "value": "10"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Telemetry has series points', function () { var jsonData = pm.response.json(); pm.expect(jsonData.series.length).to.be.above(0); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST Stream Inference (Normal Weather)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"timestamp\": \"2026-10-10 12:00:00\",\n  \"temp_2m\": 31.4,\n  \"temp_4m\": 31.1,\n  \"temp_8m\": 30.8,\n  \"rh_2m\": 65.0,\n  \"rh_4m\": 66.2,\n  \"rh_8m\": 67.0,\n  \"pressure\": 998.4,\n  \"battery_voltage\": 13.2,\n  \"wind_speed_10m\": 2.4,\n  \"rainfall\": 0.0\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/telemetry/stream-point",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "telemetry", "stream-point"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Classification is NORMAL', function () { var jsonData = pm.response.json(); pm.expect(jsonData.classification).to.eql('NORMAL'); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST Stream Inference (Sensor Spike Fault)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"timestamp\": \"2026-10-10 12:00:00\",\n  \"temp_2m\": 31.4,\n  \"temp_4m\": -33.4,\n  \"temp_8m\": 30.8,\n  \"rh_2m\": 65.0,\n  \"rh_4m\": 66.2,\n  \"rh_8m\": 67.0,\n  \"pressure\": 998.4,\n  \"battery_voltage\": 13.2,\n  \"prev_temp_4m\": 31.1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/telemetry/stream-point",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "telemetry", "stream-point"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Sensor fault flagged on temp_4m', function () { var jsonData = pm.response.json(); pm.expect(jsonData.classification).to.eql('PROBABLE_SENSOR_FAULT'); pm.expect(jsonData.affected_sensors).to.include('temp_4m'); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Diagnostics, Sensor Health & Benchmarks",
+      "item": [
+        {
+          "name": "GET Sensor Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/sensors/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "sensors", "health"]
+            }
+          }
+        },
+        {
+          "name": "GET Anomaly Incidents Log",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/anomalies/events?limit=50",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "anomalies", "events"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Model Benchmark Comparison",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/models/benchmark",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "models", "benchmark"]
+            }
+          }
+        },
+        {
+          "name": "GET TreeSHAP Global Importance",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/explainability/global-importance",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "explainability", "global-importance"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

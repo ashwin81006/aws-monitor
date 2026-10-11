@@ -1,7 +1,14 @@
 import os
+import sys
 import json
 import numpy as np
 import pandas as pd
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
+try:
+    from src.detection.core_detector import W_RULE, W_CROSS, W_TEMP, W_ML
+except ImportError:
+    from .core_detector import W_RULE, W_CROSS, W_TEMP, W_ML
 
 # ==============================================================================
 # MULTI-SOURCE EVIDENCE MATRIX & BAYESIAN NOISY-OR FUSION ENGINE
@@ -214,19 +221,14 @@ def build_evidence_matrix():
     # MULTI-SOURCE BAYESIAN NOISY-OR PROBABILISTIC FUSION
     # --------------------------------------------------------------------------
     print("\n[2/3] Executing Bayesian Noisy-OR multi-layer fusion...")
-    # Channel reliability weights
-    w_rule = 0.95
-    w_cross = 0.90
-    w_temp = 0.85
-    w_ml = 0.80
 
     no_fault_prob = (
-        (1.0 - w_rule * matrix["score_rule"]) *
-        (1.0 - w_cross * matrix["score_cross"]) *
-        (1.0 - w_temp * matrix["score_temporal"])
+        (1.0 - W_RULE * matrix["score_rule"]) *
+        (1.0 - W_CROSS * matrix["score_cross"]) *
+        (1.0 - W_TEMP * matrix["score_temporal"])
     )
     if matrix["if_evidence_available"].sum() > 0:
-        ml_term = np.where(matrix["if_evidence_available"] == 1, 1.0 - w_ml * matrix["score_ml"], 1.0)
+        ml_term = np.where(matrix["if_evidence_available"] == 1, 1.0 - W_ML * matrix["score_ml"], 1.0)
         no_fault_prob = no_fault_prob * ml_term
 
     matrix["fused_anomaly_score"] = np.round((1.0 - no_fault_prob).clip(lower=0.0, upper=1.0), 4)

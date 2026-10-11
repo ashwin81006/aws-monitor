@@ -1,4 +1,6 @@
 import os
+import time
+import json
 import joblib
 import pandas as pd
 from sklearn.svm import OneClassSVM
@@ -18,6 +20,7 @@ features_file = "data/processed/aws_features.csv"
 
 model_file = "models/ocsvm_model.pkl"
 results_file = "data/processed/aws_ocsvm_results.csv"
+meta_file = "models/training_meta.json"
 
 train = pd.read_csv(train_file)
 test = pd.read_csv(test_file)
@@ -33,8 +36,10 @@ model = OneClassSVM(
 )
 
 print("\nTraining One-Class SVM (RBF kernel, nu=0.01)...")
+t0 = time.perf_counter()
 model.fit(train.values)
-print("Training complete.")
+fit_time_sec = time.perf_counter() - t0
+print(f"Training complete in {fit_time_sec:.4f} seconds.")
 
 # Predictions on uncorrupted test split
 test_scores = model.decision_function(test.values)
@@ -54,13 +59,27 @@ print(f"\nTest observations : {len(results)}")
 print(f"Anomalies flagged : {results['anomaly_flag'].sum()}")
 print(f"Anomaly percentage: {results['anomaly_flag'].mean() * 100:.2f}%")
 
-print("\nScore statistics:")
-print(results["anomaly_score"].describe())
-
-# Save artifacts
 os.makedirs("models", exist_ok=True)
 joblib.dump(model, model_file)
 results.to_csv(results_file, index=False)
 
-print(f"\nSaved model   : {model_file}")
-print(f"Saved results : {results_file}")
+# Record training meta
+meta = {}
+if os.path.exists(meta_file):
+    try:
+        with open(meta_file, "r") as f:
+            meta = json.load(f)
+    except Exception:
+        meta = {}
+meta["One-Class SVM"] = {
+    "fit_time_sec": round(fit_time_sec, 4),
+    "n_samples": len(train),
+    "n_features": train.shape[1],
+    "timestamp": pd.Timestamp.now().isoformat()
+}
+with open(meta_file, "w") as f:
+    json.dump(meta, f, indent=2)
+
+print("\nSaved model:", model_file)
+print("Saved results:", results_file)
+print("Recorded training meta in:", meta_file)

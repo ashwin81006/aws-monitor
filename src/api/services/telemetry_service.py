@@ -32,6 +32,9 @@ class TelemetryService:
 
         self._df = df
 
+    def set_active_dataset(self, df: pd.DataFrame):
+        self._df = df
+
     def get_history(
         self,
         start_time: Optional[str] = None,

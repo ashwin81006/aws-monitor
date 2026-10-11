@@ -36,15 +36,18 @@ class TelemetryInferenceResponse(BaseModel):
     timestamp: str
     classification: str
     anomaly_probability: float
+    fused_anomaly_score: Optional[float] = None
     confidence: float
     severity: str
     probable_root_cause: str
+    root_cause: Optional[str] = None
     affected_sensors: List[str]
     is_anomaly: bool
     if_score: float
     if_outlier: bool
     evidence_breakdown: Dict[str, Any]
     explanation: str
+
 
 
 class TelemetryHistoryPoint(BaseModel):

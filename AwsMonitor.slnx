@@ -1,0 +1,5 @@
+<Solution>
+  <Folder Name="/ui/">
+    <Project Path="ui/AwsMonitor.UI/AwsMonitor.UI.csproj" />
+  </Folder>
+</Solution>

@@ -1,6 +1,7 @@
 import os
+import json
 import pandas as pd
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 
 from ..config import SHAP_GLOBAL_PATH, SHAP_EVENTS_PATH
 from ..schemas.explainability import (
@@ -36,44 +37,60 @@ class ExplainabilityService:
     def __init__(self):
         self._global_df = None
         self._events_df = None
+        self._summary_meta = None
         self._load_data()
 
     def _load_data(self):
         if os.path.exists(SHAP_GLOBAL_PATH):
-            self._global_df = pd.read_csv(SHAP_GLOBAL_PATH)
+            try:
+                self._global_df = pd.read_csv(SHAP_GLOBAL_PATH)
+            except Exception:
+                self._global_df = None
         if os.path.exists(SHAP_EVENTS_PATH):
-            self._events_df = pd.read_csv(SHAP_EVENTS_PATH)
+            try:
+                self._events_df = pd.read_csv(SHAP_EVENTS_PATH)
+            except Exception:
+                self._events_df = None
+
+        summary_path = "data/processed/aws_event_explanations_summary.json"
+        if os.path.exists(summary_path):
+            try:
+                with open(summary_path, "r") as f:
+                    self._summary_meta = json.load(f)
+            except Exception:
+                self._summary_meta = None
 
     def get_global_importance(self) -> ShapGlobalImportanceResponse:
-        if self._global_df is None:
-            self._load_data()
+        self._load_data()
 
-        if self._global_df is None:
-            return ShapGlobalImportanceResponse(total_features_evaluated=0, top_features=[])
-
-        features = []
-        for _, row in self._global_df.iterrows():
-            f_name = str(row["feature"])
-            domain = FEATURE_DOMAIN_MAP.get(f_name, "Meteorological Dynamics")
-            features.append(
-                ShapFeatureImportance(
-                    feature=f_name,
-                    mean_abs_shap=round(float(row["mean_abs_shap"]), 5),
-                    rank=int(row["rank"]),
-                    physical_domain=domain
+        if self._global_df is not None and len(self._global_df) > 0:
+            features = []
+            for _, row in self._global_df.iterrows():
+                f_name = str(row["feature"])
+                domain = FEATURE_DOMAIN_MAP.get(f_name, "Meteorological Dynamics")
+                features.append(
+                    ShapFeatureImportance(
+                        feature=f_name,
+                        mean_abs_shap=round(float(row["mean_abs_shap"]), 5),
+                        rank=int(row["rank"]),
+                        physical_domain=domain
+                    )
                 )
+            return ShapGlobalImportanceResponse(
+                total_features_evaluated=len(features),
+                top_features=features
             )
 
+        # Return empty list when artifacts are not generated, avoiding fabricated data
         return ShapGlobalImportanceResponse(
-            total_features_evaluated=len(features),
-            top_features=features
+            total_features_evaluated=0,
+            top_features=[]
         )
 
     def get_event_explanation(self, event_id: int) -> Optional[ShapEventExplanationResponse]:
-        if self._events_df is None:
-            self._load_data()
+        self._load_data()
 
-        if self._events_df is None:
+        if self._events_df is None or len(self._events_df) == 0:
             return None
 
         sub = self._events_df[self._events_df["event_id"] == event_id]
@@ -120,11 +137,19 @@ class ExplainabilityService:
             else f"Event #{event_id} flagged by Isolation Forest."
         )
 
+        base_val = 0.0
+        if self._summary_meta and "expected_value" in self._summary_meta:
+            base_val = float(self._summary_meta["expected_value"])
+        elif "expected_base_value" in row and pd.notna(row["expected_base_value"]):
+            base_val = float(row["expected_base_value"])
+
+        anomaly_score = float(row.get("peak_fused_score", row.get("mean_fused_score", 0.0)))
+
         return ShapEventExplanationResponse(
             event_id=int(row["event_id"]),
             timestamp=str(row.get("start_time", "N/A")),
-            anomaly_score=round(float(row.get("peak_fused_score", 0.85)), 4),
-            expected_base_value=0.0572,
+            anomaly_score=round(anomaly_score, 4),
+            expected_base_value=round(base_val, 4),
             prediction_outcome=str(row.get("candidate_class", "PROBABLE_SENSOR_FAULT")),
             top_contributors=final_contributors,
             plain_english_summary=summary_text

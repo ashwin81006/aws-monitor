@@ -6,22 +6,23 @@ import subprocess
 # ==============================================================================
 # AWS MONITOR: CONSOLIDATED END-TO-END AUTOMATED PIPELINE
 # ==============================================================================
-# 15 cleanly orchestrated, non-redundant, modular steps:
-#   1. Exploratory Data Analysis (EDA summary & profiling)
-#   2. Preprocessing & Data Cleaning (Quality flags & sentinels)
-#   3. Feature Engineering (Temporal, Cross-sensor, Rolling context, Repetition)
-#   4. ML Data Preparation (Feature selection, 70/30 split, Imputation, RobustScaler)
-#   5. ML Model: Isolation Forest (Primary production model)
-#   6. ML Model: Local Outlier Factor (Benchmark density model)
-#   7. ML Model: One-Class SVM (Benchmark margin model)
-#   8. Detection: Rule-based Quality Control (QC)
-#   9. Detection: Empirical Threshold Calibration
-#  10. Detection: Cross-Sensor Consistency Evidence
-#  11. Detection: Temporal Dynamic Evidence
-#  12. Detection: Multi-Source Evidence Matrix
-#  13. Detection: Event-Level Clustering & Root Cause Fusion
-#  14. Controlled Synthetic Fault Validation
-#  15. Multi-Model Benchmark Comparison
+# 16 cleanly orchestrated, non-redundant, modular steps:
+#   1. Preprocessing & Data Cleaning (src/preprocessing/clean_aws.py)
+#   2. Exploratory Data Analysis & Profiling (src/exploration/eda_summary.py)
+#   3. Feature Engineering (31 causal features: src/features/build_features.py)
+#   4. ML Data Preparation (70/30 split, Imputation, RobustScaler: src/ml/prepare_ml_data.py)
+#   5. ML Model: Isolation Forest (src/ml/isolation_forest.py)
+#   6. ML Model: Local Outlier Factor (src/ml/local_outlier_factor.py)
+#   7. ML Model: One-Class SVM (src/ml/one_class_svm.py)
+#   8. Detection: Rule-based Quality Control (src/detection/rule_qc.py)
+#   9. Detection: Empirical Threshold Calibration (src/detection/calibrate_thresholds.py)
+#  10. Detection: Cross-Sensor Consistency Evidence (src/detection/cross_sensor_evidence.py)
+#  11. Detection: Temporal Dynamic Evidence (src/detection/temporal_evidence.py)
+#  12. Detection: Multi-Source Evidence Matrix (src/detection/build_evidence_matrix.py)
+#  13. Detection: Event-Level Clustering & Root Cause Fusion (src/detection/event_fusion.py)
+#  14. Controlled Synthetic Fault Validation (src/validation/run_validation.py)
+#  15. Multi-Model Benchmark Comparison (src/ml/model_comparison.py)
+#  16. Telemetry Model Explainability via TreeSHAP (src/explainability/shap_explainer.py)
 # ==============================================================================
 
 steps = [

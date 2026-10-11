@@ -203,17 +203,102 @@ def evaluate_validation(model_name="Isolation Forest"):
     w_rec = w_tp / (w_tp + w_fn) if (w_tp + w_fn) > 0 else 0.0
     w_f1 = 2 * (w_prec * w_rec) / (w_prec + w_rec) if (w_prec + w_rec) > 0 else 0.0
 
-    # Event-level precision & recall
-    event_recall = fault_detection_rate
-    event_precision = 1.0 if fault_detected_count > 0 else 0.0
-    event_f1 = 2 * (event_precision * event_recall) / (event_precision + event_recall) if (event_precision + event_recall) > 0 else 0.0
+    # ----------------------------------------------------
+    # Genuine Event Matching Precision, Recall & F1
+    # ----------------------------------------------------
+    test_start = test_labels["timestamp"].min()
+    test_end = test_labels["timestamp"].max()
+
+    # In-scope predicted alert events (excluding classified benign weather extremes)
+    in_scope_preds = fusion[
+        (fusion["end_time"] >= test_start) &
+        (fusion["start_time"] <= test_end) &
+        (fusion["candidate_class"] != "POSSIBLE_WEATHER_EXTREME")
+    ].copy()
+
+    gt_faults = injected_events[injected_events["fault_type"] != "WEATHER_EXTREME"]
+
+    # Count predicted alerts that match an injected fault
+    matched_pred_count = 0
+    unmatched_pred_count = 0
+
+    for _, p_row in in_scope_preds.iterrows():
+        p_s = p_row["start_time"]
+        p_e = p_row["end_time"]
+        overlaps_gt = False
+        for _, g_row in gt_faults.iterrows():
+            g_s = g_row["start_time"]
+            g_e = g_row["end_time"]
+            if max(p_s, g_s) <= min(p_e, g_e):
+                overlaps_gt = True
+                break
+        if overlaps_gt:
+            matched_pred_count += 1
+        else:
+            unmatched_pred_count += 1
+
+    total_pred_events = matched_pred_count + unmatched_pred_count
+    event_recall = fault_detected_count / total_injected_faults if total_injected_faults > 0 else 0.0
+    event_precision = matched_pred_count / total_pred_events if total_pred_events > 0 else 0.0
+    event_f1 = (
+        2 * (event_precision * event_recall) / (event_precision + event_recall)
+        if (event_precision + event_recall) > 0 else 0.0
+    )
+
+    # Benchmark Window Event Matching
+    in_window_preds = in_scope_preds[
+        in_scope_preds.apply(
+            lambda p: any(
+                max(p["start_time"], r["start_time"] - pd.Timedelta(hours=12)) <=
+                min(p["end_time"], r["end_time"] + pd.Timedelta(hours=12))
+                for _, r in injected_events.iterrows()
+            ),
+            axis=1
+        )
+    ]
+    w_matched_preds = 0
+    w_unmatched_preds = 0
+    for _, p_row in in_window_preds.iterrows():
+        p_s = p_row["start_time"]
+        p_e = p_row["end_time"]
+        overlaps_gt = any(
+            max(p_s, g_row["start_time"]) <= min(p_e, g_row["end_time"])
+            for _, g_row in gt_faults.iterrows()
+        )
+        if overlaps_gt:
+            w_matched_preds += 1
+        else:
+            w_unmatched_preds += 1
+
+    w_event_prec = w_matched_preds / len(in_window_preds) if len(in_window_preds) > 0 else 0.0
+    w_event_f1 = (
+        2 * (w_event_prec * event_recall) / (w_event_prec + event_recall)
+        if (w_event_prec + event_recall) > 0 else 0.0
+    )
 
     print("\n------------------------------------------------------------")
     print("3. MULTI-LEVEL PRECISION & RECALL SUMMARY")
     print("------------------------------------------------------------")
-    print(f"EVENT-LEVEL:      Precision = {event_precision * 100:.1f}%, Recall = {event_recall * 100:.1f}%, F1 = {event_f1:.4f}")
-    print(f"BENCHMARK WINDOW: Precision = {w_prec * 100:.1f}%, Recall = {w_rec * 100:.1f}%, F1 = {w_f1:.4f} (TP={w_tp}, FP={w_fp}, FN={w_fn})")
-    print(f"RAW FULL TESTSET: Precision = {precision * 100:.2f}%, Recall = {recall * 100:.1f}%, F1 = {f1:.4f} (FP includes raw data anomalies)")
+    print(
+        f"EVENT-LEVEL (TESTSET): Precision = {event_precision * 100:.1f}%, "
+        f"Recall = {event_recall * 100:.1f}%, F1 = {event_f1:.4f} "
+        f"(TP_events={matched_pred_count}, FP_events={unmatched_pred_count}, FN_events={total_injected_faults - fault_detected_count})"
+    )
+    print(
+        f"EVENT-LEVEL (WINDOW):  Precision = {w_event_prec * 100:.1f}%, "
+        f"Recall = {event_recall * 100:.1f}%, F1 = {w_event_f1:.4f} "
+        f"(TP_events={w_matched_preds}, FP_events={w_unmatched_preds})"
+    )
+    print(
+        f"OBSERVATION (WINDOW):  Precision = {w_prec * 100:.1f}%, "
+        f"Recall = {w_rec * 100:.1f}%, F1 = {w_f1:.4f} "
+        f"(TP={w_tp}, FP={w_fp}, FN={w_fn})"
+    )
+    print(
+        f"OBSERVATION (FULL):    Precision = {precision * 100:.2f}%, "
+        f"Recall = {recall * 100:.1f}%, F1 = {f1:.4f} "
+        f"(FP={fp} includes raw ambient anomalies outside injection set)"
+    )
 
     # ----------------------------------------------------
     # 4. Save Summary JSON & Row-level Evaluation
@@ -225,9 +310,15 @@ def evaluate_validation(model_name="Isolation Forest"):
         "event_level": {
             "fault_events_injected": total_injected_faults,
             "fault_events_detected": fault_detected_count,
+            "missed_fault_events": total_injected_faults - fault_detected_count,
+            "predicted_alert_events": total_pred_events,
+            "matched_predicted_events": matched_pred_count,
+            "unmatched_predicted_events": unmatched_pred_count,
             "event_recall": round(event_recall, 4),
             "event_precision": round(event_precision, 4),
             "event_f1_score": round(event_f1, 4),
+            "benchmark_window_event_precision": round(w_event_prec, 4),
+            "benchmark_window_event_f1": round(w_event_f1, 4),
             "weather_extreme_rejection_passed": bool(wx_row.iloc[0]["class_match"]) if len(wx_row) > 0 else True
         },
         "benchmark_window_level": {

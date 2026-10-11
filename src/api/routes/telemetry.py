@@ -10,6 +10,7 @@ from ..schemas.telemetry import (
 )
 from ..services.inference_service import inference_service
 from ..services.telemetry_service import telemetry_service
+from ..services.dataset_processor import process_and_activate_dataset
 
 router = APIRouter(prefix="/api/v1/telemetry", tags=["Telemetry & Streaming Inference"])
 
@@ -37,27 +38,35 @@ def get_telemetry_history(
     return telemetry_service.get_history(start_time=start_time, end_time=end_time, downsample_factor=downsample_factor)
 
 
+MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50 MB limit
+
+
 @router.post("/upload")
 async def upload_telemetry_csv(file: UploadFile = File(...)) -> Dict[str, Any]:
     """
-    Batch CSV upload endpoint for automated ingestion, cleaning, and quality scoring.
+    Batch CSV upload endpoint for automated ingestion, schema validation, feature extraction,
+    multi-height lapse gradient verification, Isolation Forest inference, and full dashboard activation.
     """
     if not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only CSV files are supported.")
 
     content = await file.read()
+    if len(content) > MAX_UPLOAD_SIZE:
+        raise HTTPException(status_code=413, detail="File size exceeds maximum allowed limit of 50 MB.")
+
     try:
         df = pd.read_csv(io.StringIO(content.decode("utf-8", errors="replace")))
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to parse CSV file: {str(e)}")
 
-    row_count = len(df)
-    col_count = len(df.columns)
+    if len(df) == 0:
+        raise HTTPException(status_code=400, detail="Uploaded CSV file is empty.")
 
-    return {
-        "status": "UPLOAD_SUCCESSFUL",
-        "filename": file.filename,
-        "rows_received": row_count,
-        "columns_received": col_count,
-        "message": f"Successfully parsed {row_count} rows across {col_count} columns."
-    }
+    try:
+        return process_and_activate_dataset(df, file.filename)
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Dataset processing failure: {str(e)}")
+
+
