@@ -1,175 +1,19 @@
-import pandas as pd
+"""
+Clean AWS Preprocessing wrapper.
+Provides backward-compatible interface calling the in-memory preprocessor.
+"""
 
-input_file = "data/raw/aws_dataset.csv"
-output_file = "data/processed/aws_clean.csv"
-
-df = pd.read_csv(input_file)
-
-df["timestamp"] = pd.to_datetime(
-    df["DATE(IST)"] + " " + df["TIME(IST)"],
-    format="mixed"
-)
-
-df = df.sort_values("timestamp").reset_index(drop=True)
-
-# --------------------------------------------------
-# Quality flags
-# --------------------------------------------------
-
-missing_check_columns = [
-    column
-    for column in df.columns
-    if df[column].notna().any()
-]
-
-df["missing_any"] = (
-    df[missing_check_columns].isna().any(axis=1)
-).astype(int)
+from .preprocess import load_raw_dataset, preprocess_data, RAW_DATA_PATH
 
 
-df["time_gap_minutes"] = (
-    df["timestamp"].diff().dt.total_seconds() / 60
-)
+def run_cleaning(input_path=None, output_path=None):
+    raw_df = load_raw_dataset(input_path)
+    flagged_df, clean_df = preprocess_data(raw_df)
+    if output_path:
+        clean_df.to_csv(output_path, index=False)
+    return clean_df
 
-df["large_time_gap"] = (
-    df["time_gap_minutes"] > 60
-).astype(int)
 
-# --------------------------------------------------
-# Temperature
-# --------------------------------------------------
-
-temp_columns = [
-    "AIR_TEMPERATURE1(°C at 2m height)",
-    "AIR_TEMPERATURE2(°C at 4m height)",
-    "AIR_TEMPERATURE3(°C at 8m height)"
-]
-
-for column in temp_columns:
-    df[column + "_invalid"] = (
-        df[column] == -40
-    ).astype(int)
-
-# --------------------------------------------------
-# Relative humidity
-# --------------------------------------------------
-
-rh_columns = [
-    "RELATIVE_HUMIDITY1(% at 2m height)",
-    "RELATIVE_HUMIDITY2(% at 4m height)",
-    "RELATIVE_HUMIDITY3(% at 8m height)"
-]
-
-for column in rh_columns:
-    df[column + "_invalid"] = (
-        (df[column] < 0) |
-        (df[column] > 100)
-    ).astype(int)
-
-# --------------------------------------------------
-# Wind direction
-# --------------------------------------------------
-
-wind_direction_columns = [
-    "WIND_DIRECTION1(deg at 3m height)",
-    "WIND_DIRECTION2(deg at 6m height)",
-    "WIND_DIRECTION3(deg at 10m height)"
-]
-
-for column in wind_direction_columns:
-    df[column + "_invalid"] = (
-        (df[column] < 0) |
-        (df[column] > 360)
-    ).astype(int)
-
-# --------------------------------------------------
-# Radiation sentinel
-# --------------------------------------------------
-
-radiation_columns = [
-    "RAD_LONG_OUT(w/m2) ",
-    "RAD_LONG_IN(w/m2) "
-]
-
-for column in radiation_columns:
-    df[column + "_invalid"] = (
-        df[column] == -312
-    ).astype(int)
-
-# --------------------------------------------------
-# Heat flux sentinel
-# --------------------------------------------------
-
-heat_flux_columns = [
-    "HEAT_FLUX1(w/m2 at 0.50m height) ",
-    "HEAT_FLUX2(w/m2 at 0.20m height)"
-]
-
-for column in heat_flux_columns:
-    df[column + "_invalid"] = (
-        df[column] == -100
-    ).astype(int)
-
-# --------------------------------------------------
-# Rainfall suspicious values
-# --------------------------------------------------
-
-rainfall = "RAINFALL(mm)"
-
-df["rainfall_suspicious"] = (
-    df[rainfall] > 100
-).astype(int)
-
-# --------------------------------------------------
-# Combined quality flag
-# --------------------------------------------------
-
-flag_columns = [
-    column
-    for column in df.columns
-    if column.endswith("_invalid")
-]
-
-flag_columns.append("rainfall_suspicious")
-
-df["quality_issue"] = (
-    df[flag_columns].any(axis=1)
-).astype(int)
-
-# --------------------------------------------------
-# Canonical Column Aliases
-# --------------------------------------------------
-
-COLUMN_MAP = {
-    "temp_2m": "AIR_TEMPERATURE1(°C at 2m height)",
-    "temp_4m": "AIR_TEMPERATURE2(°C at 4m height)",
-    "temp_8m": "AIR_TEMPERATURE3(°C at 8m height)",
-    "rh_2m": "RELATIVE_HUMIDITY1(% at 2m height)",
-    "rh_4m": "RELATIVE_HUMIDITY2(% at 4m height)",
-    "rh_8m": "RELATIVE_HUMIDITY3(% at 8m height)",
-    "wind_speed_3m": "WIND_SPEED1(m/s at 3m height) ",
-    "wind_speed_6m": "WIND_SPEED2(m/s at 6m height)",
-    "wind_speed_10m": "WIND_SPEED3(m/s at 10m height)",
-    "wind_dir_3m": "WIND_DIRECTION1(deg at 3m height)",
-    "wind_dir_6m": "WIND_DIRECTION2(deg at 6m height)",
-    "wind_dir_10m": "WIND_DIRECTION3(deg at 10m height)",
-    "pressure": "ATMOSPHERIC_PRESSURE(mbar) ",
-    "battery_voltage": "BATTRY_VOLTAGE(V)",
-    "rainfall": "RAINFALL(mm)",
-}
-
-for alias, raw_col in COLUMN_MAP.items():
-    if raw_col in df.columns:
-        df[alias] = pd.to_numeric(df[raw_col], errors="coerce")
-
-# --------------------------------------------------
-# Save
-# --------------------------------------------------
-
-df.to_csv(output_file, index=False)
-
-print("Rows:", len(df))
-print("Columns:", len(df.columns))
-print("Quality issue rows:", df["quality_issue"].sum())
-print("Large time gaps:", df["large_time_gap"].sum())
-print("Saved:", output_file)
+if __name__ == "__main__":
+    df = run_cleaning()
+    print(f"Clean AWS dataset ready with {len(df):,} rows.")

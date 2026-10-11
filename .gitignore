@@ -31,3 +31,8 @@ Thumbs.db
 
 WeatherTrust/
 .vs/
+bin/
+obj/
+ui/**/bin/
+ui/**/obj/
+TAMILNADU*.csv

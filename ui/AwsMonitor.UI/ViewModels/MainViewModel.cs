@@ -473,6 +473,8 @@ public partial class MainViewModel : ObservableObject
         {
             new Axis
             {
+                Name = "Timeline (Sequential 30-min Observations)",
+                NamePaint = new SolidColorPaint(new SKColor(148, 163, 184)), // Slate-400
                 LabelsPaint = new SolidColorPaint(new SKColor(148, 163, 184)), // Slate-400
                 TextSize = 11,
                 SeparatorsPaint = new SolidColorPaint(new SKColor(51, 65, 85, 80))
