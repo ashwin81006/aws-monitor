@@ -28,6 +28,7 @@ models/*.keras
 .DS_Store
 Thumbs.db
 *.txt
+!requirements.txt
 
 .vs/
 bin/
