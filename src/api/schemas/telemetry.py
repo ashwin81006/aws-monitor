@@ -5,31 +5,34 @@ from pydantic import BaseModel, Field
 class TelemetryPointInput(BaseModel):
     timestamp: Optional[str] = Field(None, description="ISO timestamp (YYYY-MM-DD HH:MM:SS)")
     
-    # Core temperature readings (°C)
-    temp_2m: float = Field(..., description="Air temperature at 2m height (°C)")
-    temp_4m: float = Field(..., description="Air temperature at 4m height (°C)")
-    temp_8m: float = Field(..., description="Air temperature at 8m height (°C)")
+    # Core SIH Parameters
+    temperature: Optional[float] = Field(None, description="Air temperature (°C)")
+    humidity: Optional[float] = Field(None, description="Relative humidity (%)")
+    pressure: Optional[float] = Field(985.0, description="Atmospheric barometric pressure (hPa/mbar)")
     
-    # Core relative humidity readings (%)
-    rh_2m: float = Field(..., description="Relative humidity at 2m height (%)")
-    rh_4m: float = Field(..., description="Relative humidity at 4m height (%)")
-    rh_8m: float = Field(..., description="Relative humidity at 8m height (%)")
-    
-    # Surface & diagnostics
-    pressure: float = Field(..., description="Atmospheric barometric pressure (mbar)")
-    battery_voltage: float = Field(..., description="Station lead-acid battery voltage (V)")
-    wind_speed_10m: Optional[float] = Field(0.0, description="Wind speed at 10m (m/s)")
-    rainfall: Optional[float] = Field(0.0, description="Rainfall precipitation (mm)")
+    # Backward compatibility aliases for multi-height clients
+    temp_2m: Optional[float] = None
+    temp_4m: Optional[float] = None
+    temp_8m: Optional[float] = None
+    rh_2m: Optional[float] = None
+    rh_4m: Optional[float] = None
+    rh_8m: Optional[float] = None
+    battery_voltage: Optional[float] = 12.8
+    wind_speed_10m: Optional[float] = 0.0
+    rainfall: Optional[float] = 0.0
 
-    # Optional previous step for dynamic rates calculation
-    prev_temp_2m: Optional[float] = None
-    prev_temp_4m: Optional[float] = None
-    prev_temp_8m: Optional[float] = None
-    prev_rh_2m: Optional[float] = None
-    prev_rh_4m: Optional[float] = None
-    prev_rh_8m: Optional[float] = None
-    prev_pressure: Optional[float] = None
-    prev_battery_voltage: Optional[float] = None
+    def get_temperature(self) -> float:
+        if self.temperature is not None:
+            return self.temperature
+        return self.temp_2m if self.temp_2m is not None else 28.5
+
+    def get_humidity(self) -> float:
+        if self.humidity is not None:
+            return self.humidity
+        return self.rh_2m if self.rh_2m is not None else 65.0
+
+    def get_pressure(self) -> float:
+        return self.pressure if self.pressure is not None else 985.0
 
 
 class TelemetryInferenceResponse(BaseModel):
@@ -48,23 +51,31 @@ class TelemetryInferenceResponse(BaseModel):
     evidence_breakdown: Dict[str, Any]
     explanation: str
 
+    # Self-healing attributes
+    corrected_temperature: Optional[float] = None
+    corrected_humidity: Optional[float] = None
+    corrected_pressure: Optional[float] = None
+    is_healed: Optional[bool] = False
+    healing_method: Optional[str] = None
 
 
 class TelemetryHistoryPoint(BaseModel):
     timestamp: str
+    temperature: Optional[float] = None
+    humidity: Optional[float] = None
+    pressure: Optional[float] = None
     temp_2m: Optional[float] = None
     temp_4m: Optional[float] = None
     temp_8m: Optional[float] = None
     rh_2m: Optional[float] = None
     rh_4m: Optional[float] = None
     rh_8m: Optional[float] = None
-    pressure: Optional[float] = None
     battery_voltage: Optional[float] = None
     wind_speed_10m: Optional[float] = None
     rainfall: Optional[float] = None
-    is_anomaly: bool = False
     fused_score: Optional[float] = None
-    classification: Optional[str] = None
+    is_anomaly: Optional[bool] = False
+    severity: Optional[str] = "NOMINAL"
 
 
 class TelemetryHistoryResponse(BaseModel):
