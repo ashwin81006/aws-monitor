@@ -175,7 +175,31 @@ def run_validation(test_sample_size: int = 4000) -> Dict[str, Any]:
             "mean_latency_steps": mean_latency
         }
 
-    # Overall system metrics
+    # 6. Event-Level Evaluation (Bipartite fault window matching)
+    matched_events = 0
+    total_events = len(fault_events)
+    for ev in fault_events:
+        window_preds = test_injected.loc[ev["start_idx"]: ev["end_idx"], "predicted_alert"]
+        if (window_preds == 1).any():
+            matched_events += 1
+
+    event_recall = round(matched_events / max(total_events, 1), 4)
+
+    # Count contiguous predicted alert episodes outside fault windows
+    pred_series = test_injected["predicted_alert"]
+    alert_starts = (pred_series == 1) & (pred_series.shift(1, fill_value=0) == 0)
+    alert_indices = test_injected.index[alert_starts].tolist()
+
+    unmatched_alert_episodes = 0
+    for a_idx in alert_indices:
+        in_any_fault = any(ev["start_idx"] <= a_idx <= ev["end_idx"] for ev in fault_events)
+        if not in_any_fault:
+            unmatched_alert_episodes += 1
+
+    event_precision = round(matched_events / max(matched_events + unmatched_alert_episodes, 1), 4)
+    event_f1 = round(2 * event_precision * event_recall / max(event_precision + event_recall, 1e-4), 4)
+
+    # 7. Point-Level Classification Metrics
     y_true = test_injected["ground_truth_fault"].to_numpy()
     y_pred = test_injected["predicted_alert"].to_numpy()
 
@@ -192,6 +216,12 @@ def run_validation(test_sample_size: int = 4000) -> Dict[str, Any]:
         "precision": precision,
         "recall": recall,
         "f1_score": f1,
+        "event_precision": event_precision,
+        "event_recall": event_recall,
+        "event_f1": event_f1,
+        "total_events": total_events,
+        "matched_events": matched_events,
+        "unmatched_alerts": unmatched_alert_episodes,
         "tp": tp_total,
         "fp": fp_total,
         "fn": fn_total,
@@ -202,19 +232,26 @@ def run_validation(test_sample_size: int = 4000) -> Dict[str, Any]:
 
 
 if __name__ == "__main__":
-    print("=" * 75)
+    print("=" * 78)
     print(" AWS ANOMALY DETECTION: FAULT INJECTION VALIDATION REPORT ")
-    print("=" * 75)
+    print("=" * 78)
     res = run_validation()
 
     print(f"{'Fault Scenario':<22} | {'Points':<8} | {'Detected':<9} | {'Recall':<8} | {'Avg Latency':<12}")
-    print("-" * 75)
+    print("-" * 78)
     for sc_name, sc_data in res["scenarios"].items():
         print(f"{sc_name:<22} | {sc_data['injected_points']:<8} | {sc_data['detected_points']:<9} | {sc_data['recall']*100:.1f}%   | {sc_data['mean_latency_steps']} steps")
-    print("-" * 75)
-    print(f"\nOverall System Metrics (Evaluated on {res['total_evaluated_points']:,} observations):")
-    print(f"  • Fault Recall Sensitivity: {res['recall']*100:.1f}% (Caught {res['tp']:,} out of {res['tp']+res['fn']:,} injected fault points)")
-    print(f"  • Detection Specificity:    {res['tn'] / (res['tn'] + res['fp']) * 100:.1f}% (Low false alarms on clean weather)")
-    print(f"  • Detection F1-Score:       {res['f1_score']*100:.1f}%")
-    print("=" * 75)
+    print("-" * 78)
+
+    print(f"\n1. Event-Level Performance (Matched Fault Windows vs Clean Operations):")
+    print(f"  • Injected Fault Incidents: {res['total_events']} events")
+    print(f"  • Successfully Detected:    {res['matched_events']} events ({res['event_recall']*100:.1f}% Event Recall)")
+    print(f"  • Event-Level Precision:    {res['event_precision']*100:.1f}% (Only {res['unmatched_alerts']} false alarm episodes outside faults)")
+    print(f"  • Event-Level F1-Score:     {res['event_f1']*100:.1f}%")
+
+    print(f"\n2. Point-by-Point Classification Metrics ({res['total_evaluated_points']:,} timestamps):")
+    print(f"  • Point Precision:          {res['precision']*100:.1f}%")
+    print(f"  • Point Recall:             {res['recall']*100:.1f}%")
+    print(f"  • Point F1-Score:           {res['f1_score']*100:.1f}%")
+    print("=" * 78)
     print("Validation verified in-memory. Zero intermediate CSVs saved to disk.")

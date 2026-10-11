@@ -77,13 +77,14 @@ def extract_features(df: pd.DataFrame, window_size: int = 8) -> pd.DataFrame:
     feat["humidity_rate"] = np.round(feat["humidity"].diff().fillna(0.0) / time_diff, 3)
     feat["pressure_rate"] = np.round(feat["pressure"].diff().fillna(0.0) / time_diff, 3)
 
-    # 4. Causal Rolling Deviation (MAD over past window)
+    # 4. Causal Rolling Deviation (MAD over past window with physical floor)
+    min_scales = {"temperature": 0.5, "humidity": 1.0, "pressure": 0.5}
     for col, dev_col in [("temperature", "temp_dev"), ("humidity", "humidity_dev"), ("pressure", "pressure_dev")]:
         rolling_med = feat[col].rolling(window=window_size, min_periods=1, center=False).median()
         abs_diff = (feat[col] - rolling_med).abs()
         rolling_mad = abs_diff.rolling(window=window_size, min_periods=1, center=False).median()
-        mad_denom = rolling_mad.replace(0.0, np.nan).fillna(rolling_mad[rolling_mad > 0].median() or 0.1)
-        feat[dev_col] = np.round((feat[col] - rolling_med).abs() / (mad_denom + 1e-4), 3)
+        mad_denom = np.maximum(rolling_mad, min_scales[col])
+        feat[dev_col] = np.round(abs_diff / mad_denom, 3)
 
     # 5. Diurnal Solar Harmonics
     if "timestamp" in feat.columns:
@@ -134,7 +135,7 @@ class StreamingFeatureExtractor:
         else:
             t_rate, rh_rate, p_rate = 0.0, 0.0, 0.0
 
-        # 4. Causal rolling MAD
+        # 4. Causal rolling MAD with physical floor
         temps = [p[0] for p in self.history]
         rhs = [p[1] for p in self.history]
         presses = [p[2] for p in self.history]
@@ -143,13 +144,13 @@ class StreamingFeatureExtractor:
         rh_med = float(np.median(rhs))
         p_med = float(np.median(presses))
 
-        t_mad = float(np.median([abs(x - t_med) for x in temps])) or 0.1
-        rh_mad = float(np.median([abs(x - rh_med) for x in rhs])) or 0.1
-        p_mad = float(np.median([abs(x - p_med) for x in presses])) or 0.1
+        t_mad = float(np.median([abs(x - t_med) for x in temps]))
+        rh_mad = float(np.median([abs(x - rh_med) for x in rhs]))
+        p_mad = float(np.median([abs(x - p_med) for x in presses]))
 
-        t_dev = round(abs(temp - t_med) / (t_mad + 1e-4), 3)
-        rh_dev = round(abs(rh - rh_med) / (rh_mad + 1e-4), 3)
-        p_dev = round(abs(press - p_med) / (p_mad + 1e-4), 3)
+        t_dev = round(abs(temp - t_med) / max(t_mad, 0.5), 3)
+        rh_dev = round(abs(rh - rh_med) / max(rh_mad, 1.0), 3)
+        p_dev = round(abs(press - p_med) / max(p_mad, 0.5), 3)
 
         # 5. Diurnal solar harmonics
         hr_frac = ts.hour + ts.minute / 60.0
