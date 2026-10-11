@@ -1,9 +1,7 @@
 # Automatic Weather Station (AWS) Quality Control & Self-Healing Engine
 **Project Overview & Technical Summary for Review & Evaluation**
 
-* **Course & Semester:** Semester 5 Capstone / Mini-Project
-* **SIH Problem Statement:** SIH26073 — Ministry of Earth Sciences (MoES)
-* **Team Members:** Ashwin (Ashy) & Hariharan. V
+
 
 ---
 

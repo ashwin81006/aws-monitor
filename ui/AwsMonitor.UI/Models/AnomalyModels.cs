@@ -7,32 +7,39 @@ public class StreamPointRequest
     [JsonPropertyName("timestamp")]
     public string Timestamp { get; set; } = string.Empty;
 
-    [JsonPropertyName("temp_2m")]
-    public double Temp2m { get; set; } = 28.5;
+    [JsonPropertyName("temperature")]
+    public double Temperature { get; set; } = 28.5;
 
-    [JsonPropertyName("temp_4m")]
-    public double Temp4m { get; set; } = 28.2;
-
-    [JsonPropertyName("temp_8m")]
-    public double Temp8m { get; set; } = 27.9;
-
-    [JsonPropertyName("rh_2m")]
-    public double Rh2m { get; set; } = 65.0;
-
-    [JsonPropertyName("rh_4m")]
-    public double Rh4m { get; set; } = 66.0;
-
-    [JsonPropertyName("rh_8m")]
-    public double Rh8m { get; set; } = 67.0;
+    [JsonPropertyName("humidity")]
+    public double Humidity { get; set; } = 65.0;
 
     [JsonPropertyName("pressure")]
     public double Pressure { get; set; } = 998.5;
+
+    // Backward-compatibility aliases
+    [JsonPropertyName("temp_2m")]
+    public double Temp2m { get => Temperature; set => Temperature = value; }
+
+    [JsonPropertyName("temp_4m")]
+    public double Temp4m { get => Temperature; set => Temperature = value; }
+
+    [JsonPropertyName("temp_8m")]
+    public double Temp8m { get => Temperature; set => Temperature = value; }
+
+    [JsonPropertyName("rh_2m")]
+    public double Rh2m { get => Humidity; set => Humidity = value; }
+
+    [JsonPropertyName("rh_4m")]
+    public double Rh4m { get => Humidity; set => Humidity = value; }
+
+    [JsonPropertyName("rh_8m")]
+    public double Rh8m { get => Humidity; set => Humidity = value; }
 
     [JsonPropertyName("battery_voltage")]
     public double BatteryVoltage { get; set; } = 12.8;
 
     [JsonPropertyName("wind_speed_10m")]
-    public double WindSpeed10m { get; set; } = 2.4;
+    public double WindSpeed10m { get; set; } = 0.0;
 
     [JsonPropertyName("rainfall")]
     public double Rainfall { get; set; } = 0.0;
@@ -90,6 +97,21 @@ public class StreamPointResponse
 
     [JsonPropertyName("is_anomaly")]
     public bool IsAnomaly { get; set; }
+
+    [JsonPropertyName("corrected_temperature")]
+    public double? CorrectedTemperature { get; set; }
+
+    [JsonPropertyName("corrected_humidity")]
+    public double? CorrectedHumidity { get; set; }
+
+    [JsonPropertyName("corrected_pressure")]
+    public double? CorrectedPressure { get; set; }
+
+    [JsonPropertyName("is_healed")]
+    public bool IsHealed { get; set; }
+
+    [JsonPropertyName("healing_method")]
+    public string? HealingMethod { get; set; }
 }
 
 public class AnomalyEvent

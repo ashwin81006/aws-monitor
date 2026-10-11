@@ -11,8 +11,7 @@ env/
 .env
 
 # Data files
-data/raw/*.csv
-data/processed/*.csv
+*.csv
 
 # Trained models
 models/*.joblib
@@ -29,10 +28,8 @@ models/*.keras
 Thumbs.db
 *.txt
 
-WeatherTrust/
 .vs/
 bin/
 obj/
 ui/**/bin/
 ui/**/obj/
-TAMILNADU*.csv

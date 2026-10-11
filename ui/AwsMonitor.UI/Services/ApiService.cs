@@ -17,9 +17,8 @@ public interface IApiService
     Task<AnomalyDetailResponse> GetAnomalyDetailAsync(int eventId);
     Task<StreamPointResponse> StreamInferenceAsync(StreamPointRequest req);
     Task<StationHealthSummary> GetSensorHealthAsync();
-    Task<ShapSummaryResponse> GetShapSummaryAsync();
     Task<ModelBenchmarkResponse> GetModelBenchmarksAsync();
-    Task<DatasetUploadResult?> UploadTelemetryCsvAsync(Stream fileStream, string fileName);
+    Task<ShapSummaryResponse?> GetShapSummaryAsync();
 }
 
 public class ApiService : IApiService
@@ -112,11 +111,11 @@ public class ApiService : IApiService
         {
             Status = "STANDALONE_CACHE",
             Service = "AWS Monitor - Desktop UI (Offline Demo Mode)",
-            StationId = "AGROMET04_15F105",
-            ActiveModel = "Isolation Forest (31 Clean Domain Features)",
-            FeaturesCount = 31,
-            Calibration = "Empirical Bayesian Multi-Source Evidence Fusion",
-            Explainability = "TreeSHAP Local & Global Attributions"
+            StationId = "ISRO0119_15F077",
+            ActiveModel = "Isolation Forest + Thermodynamic Self-Healing",
+            FeaturesCount = 13,
+            Calibration = "Thermodynamic Physical Consistency & Empirical Benchmark",
+            Explainability = "Root Cause Diagnostics & Physical Self-Healing"
         };
     }
 
@@ -138,16 +137,16 @@ public class ApiService : IApiService
 
         return new StationSummary
         {
-            StationId = "AGROMET04_15F105",
-            StationName = "Junagadh Agricultural University, Junagadh",
-            Latitude = 21.5035,
-            Longitude = 70.4428,
-            ElevationM = 61.0,
-            TotalObservations = 23807,
-            StartTimestamp = "2023-01-01 00:00:00",
-            EndTimestamp = "2024-05-10 11:00:00",
-            SensorChannels = new List<string> { "temp_2m", "temp_4m", "temp_8m", "rh_2m", "rh_4m", "rh_8m", "pressure", "battery_voltage", "rainfall", "wind_speed_10m" },
-            ModelArchitecture = "31-Feature Robust-Scaled Isolation Forest with Rule QC & TreeSHAP"
+            StationId = "ISRO0119_15F077",
+            StationName = "ISRO AWS Station, VIT Vellore",
+            Latitude = 12.9692,
+            Longitude = 79.1559,
+            ElevationM = 214.0,
+            TotalObservations = 32774,
+            StartTimestamp = "2006-07-11 16:30:00",
+            EndTimestamp = "2015-12-09 23:30:00",
+            SensorChannels = new List<string> { "temperature", "humidity", "pressure" },
+            ModelArchitecture = "Robust-Scaled Isolation Forest with Thermodynamic Self-Healing"
         };
     }
 
@@ -287,7 +286,7 @@ public class ApiService : IApiService
                     PeakFusedScore = 0.880,
                     EventClassification = "PROBABLE_SENSOR_FAULT",
                     RootCause = "FROZEN_SENSOR",
-                    AffectedSensors = new List<string> { "temp_2m", "temp_4m" },
+                    AffectedSensors = new List<string> { "temperature" },
                     RuleFlags = new List<string> { "FROZEN_TEMP_STREAK" },
                     Description = "Consecutive identical floating point readings across 180 minutes without micro-variation."
                 },
@@ -300,9 +299,9 @@ public class ApiService : IApiService
                     PeakFusedScore = 0.540,
                     EventClassification = "BENIGN_EXTREME",
                     RootCause = "NATURAL_WEATHER_EXTREME",
-                    AffectedSensors = new List<string> { "temp_2m", "temp_4m", "temp_8m" },
+                    AffectedSensors = new List<string> { "temperature", "humidity" },
                     RuleFlags = new List<string>(),
-                    Description = "Genuine regional heatwave conditions (46.2°C) corroborated across all 3 tower elevations."
+                    Description = "Genuine regional heatwave conditions (46.2°C) corroborated across thermodynamic moisture depression."
                 },
                 new()
                 {
@@ -312,10 +311,10 @@ public class ApiService : IApiService
                     ObservationsCount = 25,
                     PeakFusedScore = 0.910,
                     EventClassification = "PROBABLE_SENSOR_FAULT",
-                    RootCause = "POWER_ANOMALY",
-                    AffectedSensors = new List<string> { "battery_voltage" },
-                    RuleFlags = new List<string> { "POWER_BROWNOUT" },
-                    Description = "Battery charge collapse below 9.8V with solar recharge failure."
+                    RootCause = "PRESSURE_TRANSIENT",
+                    AffectedSensors = new List<string> { "pressure" },
+                    RuleFlags = new List<string> { "PRESSURE_RATE_EXCEEDED" },
+                    Description = "Abrupt non-physical barometric step change in 30 minutes exceeding diurnal tidal envelope."
                 },
                 new()
                 {
@@ -326,9 +325,9 @@ public class ApiService : IApiService
                     PeakFusedScore = 0.790,
                     EventClassification = "SUSPICIOUS_UNVERIFIED",
                     RootCause = "DRIFT_OR_CALIBRATION",
-                    AffectedSensors = new List<string> { "rh_4m" },
-                    RuleFlags = new List<string> { "RH_LAPSE_GRADIENT" },
-                    Description = "Progressive calibration offset in middle relative humidity channel."
+                    AffectedSensors = new List<string> { "humidity" },
+                    RuleFlags = new List<string> { "RH_DIURNAL_DECOUPLING" },
+                    Description = "Progressive calibration offset in surface relative humidity channel relative to solar curve."
                 }
             }
         };
@@ -428,8 +427,8 @@ public class ApiService : IApiService
                 Severity = "NORMAL",
                 Confidence = 0.92,
                 RootCause = "NATURAL_WEATHER_EXTREME",
-                AffectedSensors = new List<string> { "temp_2m", "temp_4m", "temp_8m" },
-                Explanation = "High temperature observed across all tower elevations simultaneously; consistent vertical lapse rate confirms genuine regional extreme.",
+                AffectedSensors = new List<string> { "temperature", "humidity" },
+                Explanation = "High temperature observed with thermodynamic moisture depression; consistent diurnal physics confirms genuine regional extreme.",
                 MlIsolationForestScore = 0.40,
                 RuleFlags = new List<string>(),
                 IsAnomaly = false
@@ -463,54 +462,18 @@ public class ApiService : IApiService
 
         return new StationHealthSummary
         {
-            StationId = "AGROMET04_15F105",
-            OverallHealthScore = 100.0,
+            StationId = "ISRO0119_15F077",
+            OverallHealthScore = 98.8,
             HealthStatus = "EXCELLENT",
-            TotalObservations = 23807,
-            HealthySensorsCount = 10,
+            TotalObservations = 32774,
+            HealthySensorsCount = 3,
             DegradedSensorsCount = 0,
             CriticalSensorsCount = 0,
             Sensors = new Dictionary<string, SensorChannelHealth>
             {
-                ["temp_2m"] = new() { Channel = "temp_2m", TotalReadings = 23807, MissingCount = 0, MissingRatePct = 0.0, FlaggedAnomalyCount = 42, QualityScorePct = 99.8, Status = "OPERATIONAL", PhysicalMin = -10, PhysicalMax = 60, LastValidReading = 31.4 },
-                ["temp_4m"] = new() { Channel = "temp_4m", TotalReadings = 23807, MissingCount = 0, MissingRatePct = 0.0, FlaggedAnomalyCount = 68, QualityScorePct = 99.7, Status = "OPERATIONAL", PhysicalMin = -10, PhysicalMax = 60, LastValidReading = 31.1 },
-                ["temp_8m"] = new() { Channel = "temp_8m", TotalReadings = 23807, MissingCount = 0, MissingRatePct = 0.0, FlaggedAnomalyCount = 35, QualityScorePct = 99.9, Status = "OPERATIONAL", PhysicalMin = -10, PhysicalMax = 60, LastValidReading = 30.8 },
-                ["rh_2m"] = new() { Channel = "rh_2m", TotalReadings = 23807, MissingCount = 0, MissingRatePct = 0.0, FlaggedAnomalyCount = 18, QualityScorePct = 99.9, Status = "OPERATIONAL", PhysicalMin = 0, PhysicalMax = 100, LastValidReading = 62.0 },
-                ["pressure"] = new() { Channel = "pressure", TotalReadings = 23807, MissingCount = 0, MissingRatePct = 0.0, FlaggedAnomalyCount = 12, QualityScorePct = 99.9, Status = "OPERATIONAL", PhysicalMin = 850, PhysicalMax = 1080, LastValidReading = 998.4 },
-                ["battery_voltage"] = new() { Channel = "battery_voltage", TotalReadings = 23807, MissingCount = 0, MissingRatePct = 0.0, FlaggedAnomalyCount = 9, QualityScorePct = 100.0, Status = "OPERATIONAL", PhysicalMin = 9.0, PhysicalMax = 16.0, LastValidReading = 13.1 }
-            }
-        };
-    }
-
-    public async Task<ShapSummaryResponse> GetShapSummaryAsync()
-    {
-        try
-        {
-            var res = await _http.GetFromJsonAsync<ShapSummaryResponse>("/api/v1/explainability/shap");
-            if (res != null) return res;
-        }
-        catch { }
-
-        return new ShapSummaryResponse
-        {
-            ModelName = "Isolation Forest (TreeSHAP Explainer)",
-            FeaturesEvaluated = 31,
-            TopFeatures = new List<ShapFeatureItem>
-            {
-                new() { Feature = "rainfall", Importance = 1.4638, Rank = 1, Domain = "Precipitation / Gauge" },
-                new() { Feature = "dev_pressure", Importance = 0.2362, Rank = 2, Domain = "Barometric Dynamics" },
-                new() { Feature = "diff_temp_2m_8m", Importance = 0.1211, Rank = 3, Domain = "Tower Thermal Gradient" },
-                new() { Feature = "dev_temp_8m", Importance = 0.1181, Rank = 4, Domain = "Upper Air Dispersion" },
-                new() { Feature = "temp_4m", Importance = 0.1178, Rank = 5, Domain = "Tower Mid-Level Temp" },
-                new() { Feature = "rate_temp_4m", Importance = 0.1171, Rank = 6, Domain = "Thermal Rate of Change" },
-                new() { Feature = "solar_diurnal_sin", Importance = 0.0984, Rank = 7, Domain = "Diurnal Solar Cycle" },
-                new() { Feature = "diff_rh_2m_8m", Importance = 0.0892, Rank = 8, Domain = "Vertical Moisture Gradient" }
-            },
-            MeteorologicalInsights = new List<string>
-            {
-                "Precipitation (rainfall) carries top TreeSHAP importance (1.4638) due to extreme sparsity and sharp onset dynamics.",
-                "Vertical thermal gradients (diff_temp_2m_8m) rank in the top 3, directly detecting sensor decalibration and single-height ADC glitching.",
-                "Temporal rates of change and MAD rolling deviations effectively distinguish genuine microclimates from sensor electronic failures."
+                ["temperature"] = new() { Channel = "temperature", TotalReadings = 32774, MissingCount = 0, MissingRatePct = 0.0, FlaggedAnomalyCount = 42, QualityScorePct = 99.8, Status = "OPERATIONAL", PhysicalMin = -10, PhysicalMax = 60, LastValidReading = 31.4 },
+                ["humidity"] = new() { Channel = "humidity", TotalReadings = 32774, MissingCount = 0, MissingRatePct = 0.0, FlaggedAnomalyCount = 18, QualityScorePct = 99.9, Status = "OPERATIONAL", PhysicalMin = 0, PhysicalMax = 100, LastValidReading = 65.0 },
+                ["pressure"] = new() { Channel = "pressure", TotalReadings = 32774, MissingCount = 0, MissingRatePct = 0.0, FlaggedAnomalyCount = 12, QualityScorePct = 99.9, Status = "OPERATIONAL", PhysicalMin = 850, PhysicalMax = 1080, LastValidReading = 998.4 }
             }
         };
     }
@@ -530,50 +493,45 @@ public class ApiService : IApiService
             PrimaryModel = "Isolation Forest",
             Models = new List<ModelBenchmarkItem>
             {
-                new() { ModelName = "Isolation Forest", Role = "Primary Global Detector", TrainingSamples = 16664, EvalSamples = 7143, FitTimeSeconds = 0.187, InferenceThroughputObsSec = 87650.0, ModelDiskSizeKb = 981.4, OutlierRatePct = 5.0, IsSelectedProductionModel = true },
-                new() { ModelName = "One-Class SVM", Role = "Kernel Boundary Detector", TrainingSamples = 16664, EvalSamples = 7143, FitTimeSeconds = 4.210, InferenceThroughputObsSec = 29953.0, ModelDiskSizeKb = 45.9, OutlierRatePct = 5.0, IsSelectedProductionModel = false },
-                new() { ModelName = "Local Outlier Factor", Role = "Density-Based Outlier Profiler", TrainingSamples = 16664, EvalSamples = 7143, FitTimeSeconds = 1.120, InferenceThroughputObsSec = 15917.0, ModelDiskSizeKb = 6920.0, OutlierRatePct = 5.0, IsSelectedProductionModel = false }
+                new() { ModelName = "Isolation Forest", Role = "Primary Global Detector", TrainingSamples = 22941, EvalSamples = 9833, FitTimeSeconds = 0.187, InferenceThroughputObsSec = 87650.0, ModelDiskSizeKb = 981.4, OutlierRatePct = 5.0, IsSelectedProductionModel = true },
+                new() { ModelName = "One-Class SVM", Role = "Kernel Boundary Detector", TrainingSamples = 22941, EvalSamples = 9833, FitTimeSeconds = 4.210, InferenceThroughputObsSec = 29953.0, ModelDiskSizeKb = 45.9, OutlierRatePct = 5.0, IsSelectedProductionModel = false },
+                new() { ModelName = "Local Outlier Factor", Role = "Density-Based Outlier Profiler", TrainingSamples = 22941, EvalSamples = 9833, FitTimeSeconds = 1.120, InferenceThroughputObsSec = 15917.0, ModelDiskSizeKb = 6920.0, OutlierRatePct = 5.0, IsSelectedProductionModel = false }
             }
         };
     }
 
-    public async Task<DatasetUploadResult?> UploadTelemetryCsvAsync(Stream fileStream, string fileName)
+    public async Task<ShapSummaryResponse?> GetShapSummaryAsync()
     {
         try
         {
-            using var content = new MultipartFormDataContent();
-            using var fileContent = new StreamContent(fileStream);
-            fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("text/csv");
-            content.Add(fileContent, "file", fileName);
+            var res = await _http.GetFromJsonAsync<ShapSummaryResponse>("/api/v1/models/shap");
+            if (res != null) return res;
+        }
+        catch { }
 
-            var res = await _http.PostAsync("/api/v1/telemetry/upload", content);
-            if (res.IsSuccessStatusCode)
+        return new ShapSummaryResponse
+        {
+            ModelName = "Isolation Forest (TreeSHAP)",
+            FeaturesEvaluated = 13,
+            TopFeatures = new List<ShapFeatureItem>
             {
-                var result = await res.Content.ReadFromJsonAsync<DatasetUploadResult>();
-                if (result != null)
-                {
-                    IsConnected = true;
-                    return result;
-                }
+                new() { Feature = "temp_rate", Importance = 0.285, Rank = 1, Domain = "Kinematic Gradient (dT/dt)" },
+                new() { Feature = "dew_point_depression", Importance = 0.224, Rank = 2, Domain = "Thermodynamics (T - Td)" },
+                new() { Feature = "pressure_dev", Importance = 0.171, Rank = 3, Domain = "Barometric Tidal Deviation" },
+                new() { Feature = "temp_dev", Importance = 0.163, Rank = 4, Domain = "Diurnal Solar Anomaly" },
+                new() { Feature = "humidity_rate", Importance = 0.158, Rank = 5, Domain = "Moisture Rate of Change (dRH/dt)" },
+                new() { Feature = "pressure", Importance = 0.142, Rank = 6, Domain = "Absolute Barometric Pressure" },
+                new() { Feature = "temperature", Importance = 0.138, Rank = 7, Domain = "Surface Air Temperature" },
+                new() { Feature = "dew_point", Importance = 0.125, Rank = 8, Domain = "Moisture Saturation Temperature" },
+                new() { Feature = "humidity_dev", Importance = 0.115, Rank = 9, Domain = "Diurnal Moisture Deviation" },
+                new() { Feature = "pressure_rate", Importance = 0.098, Rank = 10, Domain = "Barometric Rate of Change (dP/dt)" }
+            },
+            MeteorologicalInsights = new List<string>
+            {
+                "Temperature rate of change (temp_rate) is the #1 driver: Hardware glitch spikes jump >10°C/hr, which violates thermal inertia and immediately isolates anomalies.",
+                "Dew point depression (dew_point_depression = T - Td) is the #2 driver: Physical thermodynamic decoupling between temperature and moisture exposes sensor drift before failure.",
+                "Diurnal deviation features (temp_dev & pressure_dev) prevent false alarms during true summer heatwaves (46°C) by verifying alignment with solar noon cycles."
             }
-        }
-        catch
-        {
-            IsConnected = false;
-        }
-
-        // Return offline mock response if server offline
-        return new DatasetUploadResult
-        {
-            Status = "VALIDATED_LOCAL_OFFLINE",
-            Filename = fileName,
-            RowsReceived = 1440,
-            ColumnsReceived = 10,
-            DateRange = "2024-01-01 00:00 to 2024-01-30 23:30",
-            SensorsDetected = new List<string> { "temp_2m", "temp_4m", "temp_8m", "rh_2m", "pressure", "battery_voltage" },
-            FlaggedFaultsCount = 14,
-            QualityScorePct = 99.0,
-            Message = $"Parsed {fileName} in offline validation mode. Found 6 standard sensors with 99.0% quality rating."
         };
     }
 }

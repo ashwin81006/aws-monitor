@@ -94,6 +94,15 @@ public class TelemetryPoint
     [JsonPropertyName("timestamp")]
     public string Timestamp { get; set; } = string.Empty;
 
+    [JsonPropertyName("temperature")]
+    public double? Temperature { get; set; }
+
+    [JsonPropertyName("humidity")]
+    public double? Humidity { get; set; }
+
+    public double ResolvedTemperature => Temperature ?? Temp2m ?? 31.4;
+    public double ResolvedHumidity => Humidity ?? Rh2m ?? 65.0;
+
     [JsonPropertyName("temp_2m")]
     public double? Temp2m { get; set; }
 
