@@ -528,9 +528,9 @@ public class ApiService : IApiService
             },
             MeteorologicalInsights = new List<string>
             {
-                "Temperature rate of change (temp_rate) is the #1 driver: Hardware glitch spikes jump >10°C/hr, which violates thermal inertia and immediately isolates anomalies.",
-                "Dew point depression (dew_point_depression = T - Td) is the #2 driver: Physical thermodynamic decoupling between temperature and moisture exposes sensor drift before failure.",
-                "Diurnal deviation features (temp_dev & pressure_dev) prevent false alarms during true summer heatwaves (46°C) by verifying alignment with solar noon cycles."
+                "Temperature rate of change (temp_rate) is the top driver: sudden spikes exceeding 10°C/hr isolate hardware glitches from natural heating.",
+                "Dew point depression (T - Td) detects sensor drift through physical divergence between temperature and moisture.",
+                "Diurnal baseline features prevent false alarms during high-heat periods by accounting for natural solar cycles."
             }
         };
     }

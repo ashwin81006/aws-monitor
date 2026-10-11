@@ -126,10 +126,10 @@ public partial class MainViewModel : ObservableObject
     public Color BatteryBtnBg => SelectedChartChannel == "Battery" ? Color.FromArgb("#0284C7") : Color.FromArgb("#1E293B");
 
     [ObservableProperty]
-    public partial string ChartTitle { get; set; } = "Tower Temperature (°C) at 2m, 4m, and 8m Heights";
+    public partial string ChartTitle { get; set; } = "Air Temperature (°C)";
 
     [ObservableProperty]
-    public partial string ChartSubtitle { get; set; } = "Healthy sensors track each other smoothly. Sudden splits indicate a failing sensor.";
+    public partial string ChartSubtitle { get; set; } = "Observations against diurnal baseline";
 
     [ObservableProperty]
     public partial ISeries[] ChartSeries { get; set; } = Array.Empty<ISeries>();
@@ -144,10 +144,10 @@ public partial class MainViewModel : ObservableObject
     // Dynamic Telemetry Legend & Stat Pills
     // ---------------------------------------------------------
     [ObservableProperty]
-    public partial string TelemetryLegend1Title { get; set; } = "2m Ground Sensor";
+    public partial string TelemetryLegend1Title { get; set; } = "Air Temperature";
 
     [ObservableProperty]
-    public partial string TelemetryLegend1Value { get; set; } = "31.4°C • Nominal";
+    public partial string TelemetryLegend1Value { get; set; } = "31.4°C";
 
     [ObservableProperty]
     public partial Color TelemetryLegend1Color { get; set; } = Color.FromArgb("#38BDF8");
@@ -156,25 +156,25 @@ public partial class MainViewModel : ObservableObject
     public partial string TelemetryLegend2Title { get; set; } = "Diurnal Baseline";
 
     [ObservableProperty]
-    public partial string TelemetryLegend2Value { get; set; } = "30.5°C Expected";
+    public partial string TelemetryLegend2Value { get; set; } = "30.5°C";
 
     [ObservableProperty]
     public partial Color TelemetryLegend2Color { get; set; } = Color.FromArgb("#94A3B8");
 
     [ObservableProperty]
-    public partial string TelemetryLegend3Title { get; set; } = "Thermal Gradient";
+    public partial string TelemetryLegend3Title { get; set; } = "Thermal Rate";
 
     [ObservableProperty]
-    public partial string TelemetryLegend3Value { get; set; } = "dT/dt < 2.5°C/hr (Normal)";
+    public partial string TelemetryLegend3Value { get; set; } = "< 2.5°C/hr";
 
     [ObservableProperty]
     public partial Color TelemetryLegend3Color { get; set; } = Color.FromArgb("#10B981");
 
     [ObservableProperty]
-    public partial string TelemetryLegend4Title { get; set; } = "Channel Health";
+    public partial string TelemetryLegend4Title { get; set; } = "Status";
 
     [ObservableProperty]
-    public partial string TelemetryLegend4Value { get; set; } = "100% Operational";
+    public partial string TelemetryLegend4Value { get; set; } = "Operational";
 
     [ObservableProperty]
     public partial Color TelemetryLegend4Color { get; set; } = Color.FromArgb("#10B981");
@@ -192,7 +192,7 @@ public partial class MainViewModel : ObservableObject
     public partial Axis[] ShapYAxes { get; set; } = Array.Empty<Axis>();
 
     [ObservableProperty]
-    public partial string ShapPrimaryInsight { get; set; } = "Temperature rate of change (temp_rate) is the #1 driver: Hardware glitch spikes jump >10°C/hr, violating physical thermal inertia.";
+    public partial string ShapPrimaryInsight { get; set; } = "Temperature rate of change (temp_rate) is the top driver: sudden spikes exceeding 10°C/hr isolate hardware glitches from natural heating.";
 
     // ---------------------------------------------------------
     // Interactive Testing & Simulator Inputs
@@ -573,8 +573,8 @@ public partial class MainViewModel : ObservableObject
 
         if (channel == "Temperature")
         {
-            ChartTitle = "Air Temperature (°C) — Surface Weather Channel";
-            ChartSubtitle = "Continuous observations with expected diurnal thermal cycle. Hardware glitches violate rate limits (|dT/dt| > 10°C/hr).";
+            ChartTitle = "Air Temperature (°C)";
+            ChartSubtitle = "Observations against diurnal baseline";
 
             ChartYAxes = new Axis[]
             {
@@ -595,7 +595,7 @@ public partial class MainViewModel : ObservableObject
             {
                 new LineSeries<double>
                 {
-                    Name = "Measured Air Temp (°C)",
+                    Name = "Measured Temp (°C)",
                     Values = temps,
                     Stroke = new SolidColorPaint(new SKColor(56, 189, 248), 2.5f),
                     Fill = null,
@@ -604,7 +604,7 @@ public partial class MainViewModel : ObservableObject
                 },
                 new LineSeries<double>
                 {
-                    Name = "Expected Diurnal Baseline (°C)",
+                    Name = "Expected Baseline (°C)",
                     Values = baseline,
                     Stroke = new SolidColorPaint(new SKColor(148, 163, 184, 160), 1.8f),
                     Fill = null,
@@ -614,25 +614,25 @@ public partial class MainViewModel : ObservableObject
             };
 
             TelemetryLegend1Title = "Air Temperature";
-            TelemetryLegend1Value = $"{lastPt?.ResolvedTemperature ?? 31.4:F1}°C • Nominal";
+            TelemetryLegend1Value = $"{lastPt?.ResolvedTemperature ?? 31.4:F1}°C";
             TelemetryLegend1Color = Color.FromArgb("#38BDF8");
 
             TelemetryLegend2Title = "Diurnal Baseline";
-            TelemetryLegend2Value = "30.5°C Expected";
+            TelemetryLegend2Value = "30.5°C";
             TelemetryLegend2Color = Color.FromArgb("#94A3B8");
 
-            TelemetryLegend3Title = "Thermal Gradient";
-            TelemetryLegend3Value = "dT/dt < 2.5°C/hr (Normal)";
+            TelemetryLegend3Title = "Thermal Rate";
+            TelemetryLegend3Value = "< 2.5°C/hr";
             TelemetryLegend3Color = Color.FromArgb("#10B981");
 
-            TelemetryLegend4Title = "Channel Health";
-            TelemetryLegend4Value = "100% Operational";
+            TelemetryLegend4Title = "Status";
+            TelemetryLegend4Value = "Operational";
             TelemetryLegend4Color = Color.FromArgb("#10B981");
         }
         else if (channel == "Humidity")
         {
-            ChartTitle = "Relative Humidity (%) & Thermodynamic Dew Point (°C)";
-            ChartSubtitle = "Inversely mirrors temperature diurnal cycle. Saturation at 100% or drift below physical bounds indicates sensor fault.";
+            ChartTitle = "Relative Humidity (%) & Dew Point (°C)";
+            ChartSubtitle = "Moisture saturation compared with calculated dew point";
 
             ChartYAxes = new Axis[]
             {
@@ -683,25 +683,25 @@ public partial class MainViewModel : ObservableObject
             double lastTd = Math.Round((237.7 * lastAlpha) / (17.27 - lastAlpha), 1);
 
             TelemetryLegend1Title = "Relative Humidity";
-            TelemetryLegend1Value = $"{lastRh:F1}% • Nominal";
+            TelemetryLegend1Value = $"{lastRh:F1}%";
             TelemetryLegend1Color = Color.FromArgb("#60A5FA");
 
-            TelemetryLegend2Title = "Magnus Dew Point";
+            TelemetryLegend2Title = "Dew Point (Td)";
             TelemetryLegend2Value = $"{lastTd:F1}°C";
             TelemetryLegend2Color = Color.FromArgb("#10B981");
 
-            TelemetryLegend3Title = "Dew Point Depression";
-            TelemetryLegend3Value = $"{lastT - lastTd:F1}°C (T - Td)";
+            TelemetryLegend3Title = "Vapor Deficit (T - Td)";
+            TelemetryLegend3Value = $"{lastT - lastTd:F1}°C";
             TelemetryLegend3Color = Color.FromArgb("#38BDF8");
 
-            TelemetryLegend4Title = "Moisture Health";
-            TelemetryLegend4Value = "Thermodynamically Sound";
+            TelemetryLegend4Title = "Status";
+            TelemetryLegend4Value = "Operational";
             TelemetryLegend4Color = Color.FromArgb("#10B981");
         }
         else if (channel == "Pressure")
         {
-            ChartTitle = "Atmospheric Barometric Pressure (hPa/mbar)";
-            ChartSubtitle = "Surface station barometric pressure exhibiting natural 12-hour solar atmospheric tides around ~998 hPa.";
+            ChartTitle = "Atmospheric Pressure (hPa)";
+            ChartSubtitle = "Barometric pressure with semi-diurnal solar tides";
 
             ChartYAxes = new Axis[]
             {
@@ -735,15 +735,15 @@ public partial class MainViewModel : ObservableObject
             TelemetryLegend1Color = Color.FromArgb("#F59E0B");
 
             TelemetryLegend2Title = "Station Elevation";
-            TelemetryLegend2Value = "214 m ASL (VIT Vellore)";
+            TelemetryLegend2Value = "214 m ASL";
             TelemetryLegend2Color = Color.FromArgb("#CBD5E1");
 
-            TelemetryLegend3Title = "Solar Atmospheric Tide";
-            TelemetryLegend3Value = "12h Semi-Diurnal Wave";
+            TelemetryLegend3Title = "Tidal Variation";
+            TelemetryLegend3Value = "± 1.2 hPa";
             TelemetryLegend3Color = Color.FromArgb("#38BDF8");
 
-            TelemetryLegend4Title = "Pressure Drift";
-            TelemetryLegend4Value = "Stable (Normal)";
+            TelemetryLegend4Title = "Status";
+            TelemetryLegend4Value = "Operational";
             TelemetryLegend4Color = Color.FromArgb("#10B981");
         }
     }
@@ -797,23 +797,23 @@ public partial class MainViewModel : ObservableObject
                 temps[spikeIdx] = -33.4;
             }
 
-            ChartTitle = "⚡ Hardware Sensor Glitch Detected (-33.4°C ADC Sentinel)";
-            ChartSubtitle = "Single-observation plunge to -33.4°C violates physical rate of change (|dT/dt| = 64°C/hr). Correctly flagged as hardware failure, self-healed back to 31.1°C!";
+            ChartTitle = "Hardware Sensor Glitch (-33.4°C)";
+            ChartSubtitle = "Rate-of-change violation (|dT/dt| > 10°C/hr). Reconstructed value: 31.1°C.";
 
-            TelemetryLegend1Title = "Air Temperature Sensor";
-            TelemetryLegend1Value = "-33.4°C • GLITCH";
+            TelemetryLegend1Title = "Measured Value";
+            TelemetryLegend1Value = "-33.4°C (Fault)";
             TelemetryLegend1Color = Color.FromArgb("#EF4444");
 
-            TelemetryLegend2Title = "Thermodynamic Healed";
-            TelemetryLegend2Value = "31.1°C (Magnus Inversion)";
+            TelemetryLegend2Title = "Reconstructed";
+            TelemetryLegend2Value = "31.1°C";
             TelemetryLegend2Color = Color.FromArgb("#10B981");
 
-            TelemetryLegend3Title = "Kinematic Check (dT/dt)";
-            TelemetryLegend3Value = "VIOLATION (>10°C/hr)";
+            TelemetryLegend3Title = "Rate of Change";
+            TelemetryLegend3Value = "> 10°C/hr";
             TelemetryLegend3Color = Color.FromArgb("#EF4444");
 
-            TelemetryLegend4Title = "Diagnostic Verdict";
-            TelemetryLegend4Value = "FAULT ISOLATED";
+            TelemetryLegend4Title = "Classification";
+            TelemetryLegend4Value = "Sensor Glitch";
             TelemetryLegend4Color = Color.FromArgb("#EF4444");
         }
         else if (faultType == "Freeze")
@@ -825,23 +825,23 @@ public partial class MainViewModel : ObservableObject
                 temps[i] = 28.50;
             }
 
-            ChartTitle = "❄️ Stuck / Frozen Sensor (Zero-Variance Flatline Detected)";
-            ChartSubtitle = "Sensor outputs identical 28.50°C for hours across changing solar irradiance. Zero variance flags ADC freeze!";
+            ChartTitle = "Sensor Flatline (28.5°C)";
+            ChartSubtitle = "Zero-variance output detected across consecutive observations.";
 
-            TelemetryLegend1Title = "Air Temperature Sensor";
-            TelemetryLegend1Value = "28.5°C • Stuck Flatline";
+            TelemetryLegend1Title = "Measured Value";
+            TelemetryLegend1Value = "28.5°C (Stuck)";
             TelemetryLegend1Color = Color.FromArgb("#F59E0B");
 
-            TelemetryLegend2Title = "Expected Solar Flux";
-            TelemetryLegend2Value = "32.8°C Diurnal Peak";
+            TelemetryLegend2Title = "Expected Value";
+            TelemetryLegend2Value = "32.8°C";
             TelemetryLegend2Color = Color.FromArgb("#94A3B8");
 
-            TelemetryLegend3Title = "Signal Variance Check";
-            TelemetryLegend3Value = "ZERO VARIANCE (Var < 0.001)";
+            TelemetryLegend3Title = "Variance Check";
+            TelemetryLegend3Value = "Zero Variance";
             TelemetryLegend3Color = Color.FromArgb("#F59E0B");
 
-            TelemetryLegend4Title = "Diagnostic Verdict";
-            TelemetryLegend4Value = "FROZEN SENSOR FLAGGED";
+            TelemetryLegend4Title = "Classification";
+            TelemetryLegend4Value = "Frozen Sensor";
             TelemetryLegend4Color = Color.FromArgb("#F59E0B");
         }
         else if (faultType == "Heatwave")
@@ -853,23 +853,23 @@ public partial class MainViewModel : ObservableObject
                 temps[i] += factor * 14.5;
             }
 
-            ChartTitle = "🔥 Real 2012 Heatwave (46.5°C) — Natural Weather Extreme, NOT a Fault!";
-            ChartSubtitle = "Temperature climbs naturally with solar diurnal heating; thermodynamic dew point depression confirms valid atmospheric physics. 0 False Alarms!";
+            ChartTitle = "High Temperature Event (46.5°C)";
+            ChartSubtitle = "Gradual diurnal heating verified by low humidity and solar noon phase.";
 
-            TelemetryLegend1Title = "Air Temperature Sensor";
-            TelemetryLegend1Value = "46.5°C • Heatwave";
+            TelemetryLegend1Title = "Measured Value";
+            TelemetryLegend1Value = "46.5°C";
             TelemetryLegend1Color = Color.FromArgb("#F59E0B");
 
-            TelemetryLegend2Title = "Diurnal Solar Phase";
-            TelemetryLegend2Value = "Solar Noon Consensus";
+            TelemetryLegend2Title = "Solar Phase";
+            TelemetryLegend2Value = "Solar Noon";
             TelemetryLegend2Color = Color.FromArgb("#F59E0B");
 
-            TelemetryLegend3Title = "Kinematic Check (dT/dt)";
-            TelemetryLegend3Value = "2.1°C/hr (Natural)";
+            TelemetryLegend3Title = "Rate of Change";
+            TelemetryLegend3Value = "2.1°C/hr (Normal)";
             TelemetryLegend3Color = Color.FromArgb("#10B981");
 
-            TelemetryLegend4Title = "Diagnostic Verdict";
-            TelemetryLegend4Value = "REJECTED FALSE ALARM (NATURAL)";
+            TelemetryLegend4Title = "Classification";
+            TelemetryLegend4Value = "Natural Extreme";
             TelemetryLegend4Color = Color.FromArgb("#10B981");
         }
 
@@ -964,16 +964,16 @@ public partial class MainViewModel : ObservableObject
                 var topFeatures = shap.TopFeatures.Take(8).ToList();
                 var friendlyLabels = topFeatures.Select(f => f.Feature switch
                 {
-                    "temp_rate" => "dT/dt Thermal Gradient",
-                    "dew_point_depression" => "T - Td (Vapor Deficit)",
-                    "pressure_dev" => "Barometric Tidal Deviation",
-                    "temp_dev" => "Diurnal Solar Anomaly",
-                    "humidity_rate" => "dRH/dt Moisture Rate",
+                    "temp_rate" => "dT/dt Rate of Change",
+                    "dew_point_depression" => "T - Td Vapor Deficit",
+                    "pressure_dev" => "Pressure Deviation",
+                    "temp_dev" => "Diurnal Temp Deviation",
+                    "humidity_rate" => "dRH/dt Rate of Change",
                     "pressure" => "Barometric Pressure",
                     "temperature" => "Air Temperature",
-                    "dew_point" => "Dew Point Saturation",
+                    "dew_point" => "Dew Point",
                     "humidity_dev" => "Diurnal RH Deviation",
-                    "pressure_rate" => "dP/dt Pressure Rate",
+                    "pressure_rate" => "dP/dt Rate of Change",
                     _ => f.Feature
                 }).Reverse().ToArray();
 
@@ -999,6 +999,8 @@ public partial class MainViewModel : ObservableObject
                         Labels = friendlyLabels,
                         LabelsPaint = new SolidColorPaint(new SKColor(226, 232, 240)),
                         TextSize = 10,
+                        MinStep = 1,
+                        ForceStepToMin = true,
                         SeparatorsPaint = new SolidColorPaint(new SKColor(51, 65, 85, 40))
                     }
                 };
@@ -1020,22 +1022,23 @@ public partial class MainViewModel : ObservableObject
             }
 
             SimpleInsightsList.Clear();
-            SimpleInsightsList.Add("Isolation Forest was selected for production deployment because it achieves 87,650 obs/sec inference throughput with a sub-second fit time.");
-            SimpleInsightsList.Add("One-Class SVM creates a compact decision boundary (46 KB model footprint) but is 22x slower during model fitting.");
-            SimpleInsightsList.Add("Local Outlier Factor (LOF) effectively captures local density clusters but requires storing training reference points in memory (6.9 MB).");
+            SimpleInsightsList.Add("Isolation Forest achieves sub-second training with over 100k obs/sec inference throughput and native TreeSHAP interpretability.");
+            SimpleInsightsList.Add("One-Class SVM creates a compact 22 KB boundary but requires longer training latency.");
+            SimpleInsightsList.Add("Local Outlier Factor captures density clusters but requires storing reference points in memory (1.4 MB).");
 
             BenchmarkList.Clear();
             var modelSource = bench.AllModels != null && bench.AllModels.Count > 0
                 ? bench.AllModels
                 : new List<ModelBenchmarkItem>
                 {
-                    new() { ModelName = "Isolation Forest", Role = "Primary Production Model (Global Tree Ensemble)", InferenceThroughputObsSec = 87650.0, ModelDiskSizeKb = 981.4, FitTimeSeconds = 0.187, IsSelectedProductionModel = true, Strengths = "Ultra-fast inference (87k obs/s), TreeSHAP native explainability, scales to high dimensions.", Verdict = "Selected for Production" },
-                    new() { ModelName = "One-Class SVM", Role = "Kernel Margin Boundary Detector", InferenceThroughputObsSec = 29953.0, ModelDiskSizeKb = 45.9, FitTimeSeconds = 4.210, IsSelectedProductionModel = false, Strengths = "Ultra-compact disk size (46 KB), tight hyperplane boundary.", Verdict = "22x slower fit time, lacks fast SHAP attribution" },
-                    new() { ModelName = "Local Outlier Factor (LOF)", Role = "Density-Based Local Outlier Profiler", InferenceThroughputObsSec = 15917.0, ModelDiskSizeKb = 6920.0, FitTimeSeconds = 1.120, IsSelectedProductionModel = false, Strengths = "Captures local micro-clusters and density anomalies.", Verdict = "Heavy memory footprint (6.9 MB) & lowest throughput" }
+                    new() { ModelName = "Isolation Forest", Role = "Production Ensemble", InferenceThroughputObsSec = 137216.0, ModelDiskSizeKb = 1082.0, FitTimeSeconds = 0.35, IsSelectedProductionModel = true, Strengths = "High inference throughput with native TreeSHAP explainability.", Verdict = "Selected for Production" },
+                    new() { ModelName = "One-Class SVM", Role = "Margin Boundary Detector", InferenceThroughputObsSec = 51779.0, ModelDiskSizeKb = 22.4, FitTimeSeconds = 1.45, IsSelectedProductionModel = false, Strengths = "Compact margin boundary (22 KB).", Verdict = "Slower training latency" },
+                    new() { ModelName = "Local Outlier Factor", Role = "Density Outlier Profiler", InferenceThroughputObsSec = 12202.0, ModelDiskSizeKb = 1467.3, FitTimeSeconds = 0.85, IsSelectedProductionModel = false, Strengths = "Density-based local outlier detection.", Verdict = "Higher memory requirement" }
                 };
 
             foreach (var m in modelSource)
             {
+                bool isProd = m.IsSelectedProductionModel || (!string.IsNullOrEmpty(m.ModelName) && m.ModelName.Contains("Forest"));
                 BenchmarkList.Add(new ModelBenchmarkItem
                 {
                     ModelName = m.ModelName,
@@ -1044,9 +1047,9 @@ public partial class MainViewModel : ObservableObject
                     ModelDiskSizeKb = m.DisplayDiskSize,
                     FitTimeSeconds = m.FitTimeSeconds,
                     OutlierRatePct = m.OutlierRatePct > 0 ? m.OutlierRatePct : 5.0,
-                    IsSelectedProductionModel = m.IsSelectedProductionModel,
-                    Strengths = !string.IsNullOrEmpty(m.Strengths) ? m.Strengths : (m.ModelName.Contains("Forest") ? "Ultra-fast inference (87k obs/s), TreeSHAP native explainability." : "Evaluated baseline."),
-                    Verdict = !string.IsNullOrEmpty(m.Verdict) ? m.Verdict : (m.IsSelectedProductionModel ? "Selected for Production" : "Baseline comparison")
+                    IsSelectedProductionModel = isProd,
+                    Strengths = !string.IsNullOrEmpty(m.Strengths) ? m.Strengths : (isProd ? "High inference throughput with native TreeSHAP explainability." : (m.ModelName.Contains("SVM") ? "Compact margin boundary (22 KB)." : "Density-based local outlier detection.")),
+                    Verdict = !string.IsNullOrEmpty(m.Verdict) ? m.Verdict : (isProd ? "Selected for Production" : "Baseline comparison")
                 });
             }
         });

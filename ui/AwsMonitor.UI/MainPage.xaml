@@ -11,18 +11,18 @@
     <Grid RowDefinitions="Auto,Auto,*" Margin="{OnIdiom Phone='10,8', Default='16,12'}" RowSpacing="10">
 
         <!-- ========================================================= -->
-        <!-- ROW 0: CLEAN WEATHER-TRUST STYLE HEADER                   -->
+        <!-- ROW 0: CLEAN HEADER                                       -->
         <!-- ========================================================= -->
         <Border Grid.Row="0"
                 BackgroundColor="#131B2E"
                 Stroke="#1E293B"
                 StrokeThickness="1"
                 Padding="{OnIdiom Phone='14,10', Default='18,12'}"
-                StrokeShape="RoundRectangle 12">
+                StrokeShape="RoundRectangle 10">
             <VerticalStackLayout Spacing="3">
                 <HorizontalStackLayout Spacing="8" VerticalOptions="Center">
-                    <Label Text="AWS MONITOR"
-                           FontSize="{OnIdiom Phone=18, Default=20}"
+                    <Label Text="AWS Monitor"
+                           FontSize="{OnIdiom Phone=17, Default=19}"
                            FontAttributes="Bold"
                            TextColor="#38BDF8"
                            VerticalOptions="Center" />
@@ -30,10 +30,10 @@
                             Stroke="#0284C7"
                             StrokeThickness="1"
                             Padding="8,2"
-                            StrokeShape="RoundRectangle 6"
+                            StrokeShape="RoundRectangle 4"
                             VerticalOptions="Center">
-                        <Label Text="Weather Station Quality Control"
-                               FontSize="10"
+                        <Label Text="Station QC"
+                               FontSize="9"
                                FontAttributes="Bold"
                                TextColor="#38BDF8" />
                     </Border>
@@ -47,63 +47,63 @@
         </Border>
 
         <!-- ========================================================= -->
-        <!-- ROW 1: CLEAN TOP NAVIGATION PILLS (WeatherTrust Style)   -->
+        <!-- ROW 1: NAVIGATION TABS                                    -->
         <!-- ========================================================= -->
         <Border Grid.Row="1"
                 BackgroundColor="#131B2E"
                 Stroke="#1E293B"
                 StrokeThickness="1"
-                Padding="6"
-                StrokeShape="RoundRectangle 10">
+                Padding="5"
+                StrokeShape="RoundRectangle 8">
             <Grid ColumnDefinitions="{OnIdiom Phone='*,*', Default='*,*,*,*'}"
                   RowDefinitions="{OnIdiom Phone='Auto,Auto', Default='Auto'}"
-                  ColumnSpacing="8"
+                  ColumnSpacing="6"
                   RowSpacing="6">
 
                 <Button Grid.Row="0" Grid.Column="0"
-                        Text="🏠 Overview"
+                        Text="Overview"
                         Command="{Binding SwitchTabCommand}"
                         CommandParameter="Overview"
                         FontSize="11"
                         FontAttributes="Bold"
-                        CornerRadius="8"
-                        HeightRequest="36"
+                        CornerRadius="6"
+                        HeightRequest="34"
                         Padding="6,0"
                         BackgroundColor="{Binding OverviewTabBg}"
                         TextColor="White" />
 
                 <Button Grid.Row="{OnIdiom Phone=0, Default=0}" Grid.Column="{OnIdiom Phone=1, Default=1}"
-                        Text="📈 Telemetry"
+                        Text="Telemetry"
                         Command="{Binding SwitchTabCommand}"
                         CommandParameter="Telemetry"
                         FontSize="11"
                         FontAttributes="Bold"
-                        CornerRadius="8"
-                        HeightRequest="36"
+                        CornerRadius="6"
+                        HeightRequest="34"
                         Padding="6,0"
                         BackgroundColor="{Binding TelemetryTabBg}"
                         TextColor="White" />
 
                 <Button Grid.Row="{OnIdiom Phone=1, Default=0}" Grid.Column="{OnIdiom Phone=0, Default=2}"
-                        Text="⚡ Fault Tester &amp; Self-Healing"
+                        Text="Fault Diagnostics"
                         Command="{Binding SwitchTabCommand}"
                         CommandParameter="Tester"
                         FontSize="11"
                         FontAttributes="Bold"
-                        CornerRadius="8"
-                        HeightRequest="36"
+                        CornerRadius="6"
+                        HeightRequest="34"
                         Padding="6,0"
                         BackgroundColor="{Binding TesterTabBg}"
                         TextColor="White" />
 
                 <Button Grid.Row="{OnIdiom Phone=1, Default=0}" Grid.Column="{OnIdiom Phone=1, Default=3}"
-                        Text="📊 AI Models"
+                        Text="Model Evaluation"
                         Command="{Binding SwitchTabCommand}"
                         CommandParameter="Models"
                         FontSize="11"
                         FontAttributes="Bold"
-                        CornerRadius="8"
-                        HeightRequest="36"
+                        CornerRadius="6"
+                        HeightRequest="34"
                         Padding="6,0"
                         BackgroundColor="{Binding ModelsTabBg}"
                         TextColor="White" />
@@ -136,23 +136,23 @@
                             </VerticalStackLayout>
                         </Border>
 
-                        <!-- Card 2: Probable Sensor Faults -->
+                        <!-- Card 2: Sensor Faults -->
                         <Border Grid.Row="{OnIdiom Phone=0, Default=0}" Grid.Column="{OnIdiom Phone=1, Default=1}"
                                 BackgroundColor="#131B2E" Stroke="#1E293B" Padding="14,12" StrokeShape="RoundRectangle 10">
                             <VerticalStackLayout Spacing="3">
-                                <Label Text="PROBABLE SENSOR FAULTS" FontSize="10" FontAttributes="Bold" TextColor="#64748B" />
+                                <Label Text="SENSOR FAULTS" FontSize="10" FontAttributes="Bold" TextColor="#64748B" />
                                 <Label Text="{Binding ProbableFaultsCount, StringFormat='{0} Faults'}" FontSize="20" FontAttributes="Bold" TextColor="#EF4444" />
-                                <Label Text="Hardware glitches, spikes &amp; freezes" FontSize="10" TextColor="#94A3B8" />
+                                <Label Text="Hardware glitches detected" FontSize="10" TextColor="#94A3B8" />
                             </VerticalStackLayout>
                         </Border>
 
-                        <!-- Card 3: Possible Extremes -->
+                        <!-- Card 3: Weather Extremes -->
                         <Border Grid.Row="{OnIdiom Phone=1, Default=0}" Grid.Column="{OnIdiom Phone=0, Default=2}"
                                 BackgroundColor="#131B2E" Stroke="#1E293B" Padding="14,12" StrokeShape="RoundRectangle 10">
                             <VerticalStackLayout Spacing="3">
-                                <Label Text="POSSIBLE EXTREMES" FontSize="10" FontAttributes="Bold" TextColor="#64748B" />
+                                <Label Text="WEATHER EXTREMES" FontSize="10" FontAttributes="Bold" TextColor="#64748B" />
                                 <Label Text="{Binding WeatherExtremesCount, StringFormat='{0} Extremes'}" FontSize="20" FontAttributes="Bold" TextColor="#F59E0B" />
-                                <Label Text="Real heatwaves &amp; storms verified" FontSize="10" TextColor="#94A3B8" />
+                                <Label Text="Natural extremes confirmed" FontSize="10" TextColor="#94A3B8" />
                             </VerticalStackLayout>
                         </Border>
 
@@ -160,41 +160,35 @@
                         <Border Grid.Row="{OnIdiom Phone=1, Default=0}" Grid.Column="{OnIdiom Phone=1, Default=3}"
                                 BackgroundColor="#131B2E" Stroke="#1E293B" Padding="14,12" StrokeShape="RoundRectangle 10">
                             <VerticalStackLayout Spacing="3">
-                                <Label Text="STATION RELIABILITY" FontSize="10" FontAttributes="Bold" TextColor="#64748B" />
+                                <Label Text="STATION HEALTH" FontSize="10" FontAttributes="Bold" TextColor="#64748B" />
                                 <HorizontalStackLayout Spacing="6" VerticalOptions="Center">
                                     <Label Text="{Binding HealthScore, StringFormat='{0:F1}%'}" FontSize="20" FontAttributes="Bold" TextColor="#10B981" />
                                     <Border BackgroundColor="#064E3B" Padding="4,1" StrokeShape="RoundRectangle 4" VerticalOptions="Center">
                                         <Label Text="EXCELLENT" FontSize="9" FontAttributes="Bold" TextColor="#34D399" />
                                     </Border>
                                 </HorizontalStackLayout>
-                                <Label Text="All 3 surface channels continuously monitored" FontSize="10" TextColor="#94A3B8" />
+                                <Label Text="Surface channels operational" FontSize="10" TextColor="#94A3B8" />
                             </VerticalStackLayout>
                         </Border>
                     </Grid>
 
-                    <!-- Station Overview & Project Mission Card -->
+                    <!-- Station Overview Summary Card -->
                     <Border BackgroundColor="#131B2E" Stroke="#1E293B" Padding="16" StrokeShape="RoundRectangle 10">
-                        <VerticalStackLayout Spacing="10">
-                            <Label Text="About This Monitoring System" FontSize="13" FontAttributes="Bold" TextColor="#38BDF8" />
-                            <Label Text="Automatic Weather Stations (AWS) continuously record temperature, relative humidity, and atmospheric pressure. Hardware glitches, communication failures, frozen sensors, and power losses can corrupt this critical weather data."
+                        <VerticalStackLayout Spacing="8">
+                            <Label Text="Station Quality Control" FontSize="13" FontAttributes="Bold" TextColor="#38BDF8" />
+                            <Label Text="Automated telemetry monitoring for Automatic Weather Stations. Uses 13 physical meteorological indicators (dew point depression, solar diurnal variations, and rate-of-change limits) to distinguish hardware faults from natural extreme weather."
                                    FontSize="11" TextColor="#CBD5E1" LineBreakMode="WordWrap" />
-                            <Label Text="Traditional fixed threshold checks fail because they miss subtle sensor drift and falsely flag genuine extreme weather like heatwaves. This project uses 13 physical meteorological features (thermodynamic dew point depression, diurnal solar deviations, and rates of change) to detect true hardware glitches while rejecting benign natural extremes with 100% precision."
-                                   FontSize="11" TextColor="#94A3B8" LineBreakMode="WordWrap" />
 
-                            <BoxView HeightRequest="1" Color="#1E293B" Margin="0,4" />
-
-                            <!-- Quick Action Buttons -->
-                            <Label Text="Quick Actions to Explore:" FontSize="11" FontAttributes="Bold" TextColor="#CBD5E1" />
-                            <HorizontalStackLayout Spacing="10">
-                                <Button Text="📈 View Live Telemetry Graph"
+                            <HorizontalStackLayout Spacing="10" Margin="0,4,0,0">
+                                <Button Text="View Telemetry"
                                         Command="{Binding SwitchTabCommand}"
                                         CommandParameter="Telemetry"
-                                        BackgroundColor="#0284C7" TextColor="White" FontSize="11" FontAttributes="Bold" HeightRequest="36" CornerRadius="6" />
+                                        BackgroundColor="#0284C7" TextColor="White" FontSize="11" HeightRequest="34" CornerRadius="6" Padding="14,0" />
 
-                                <Button Text="⚡ Test a Broken Sensor Demo"
+                                <Button Text="Test Diagnostics"
                                         Command="{Binding SwitchTabCommand}"
                                         CommandParameter="Tester"
-                                        BackgroundColor="#10B981" TextColor="White" FontSize="11" FontAttributes="Bold" HeightRequest="36" CornerRadius="6" />
+                                        BackgroundColor="#1E293B" TextColor="#38BDF8" BorderColor="#38BDF8" BorderWidth="1" FontSize="11" HeightRequest="34" CornerRadius="6" Padding="14,0" />
                             </HorizontalStackLayout>
                         </VerticalStackLayout>
                     </Border>
@@ -215,28 +209,28 @@
                     <Grid ColumnDefinitions="{OnIdiom Phone='*', Default='Auto,*'}" RowDefinitions="{OnIdiom Phone='Auto,Auto', Default='*'}" RowSpacing="8">
                         <!-- Sensor Channel Buttons -->
                         <HorizontalStackLayout Spacing="6" VerticalOptions="Center">
-                            <Label Text="Sensor:" FontSize="11" FontAttributes="Bold" TextColor="#64748B" VerticalOptions="Center" Margin="0,0,4,0" />
+                            <Label Text="Channel:" FontSize="11" FontAttributes="Bold" TextColor="#64748B" VerticalOptions="Center" Margin="0,0,4,0" />
 
-                            <Button Text="🌡️ Temp"
+                            <Button Text="Temperature"
                                      Command="{Binding SelectChannelCommand}"
                                      CommandParameter="Temperature"
                                      BackgroundColor="{Binding TempBtnBg}"
                                      TextColor="White"
-                                     FontSize="10" FontAttributes="Bold" HeightRequest="32" CornerRadius="6" Padding="10,0" />
+                                     FontSize="10" FontAttributes="Bold" HeightRequest="30" CornerRadius="6" Padding="10,0" />
 
-                            <Button Text="💧 Humidity"
+                            <Button Text="Humidity"
                                      Command="{Binding SelectChannelCommand}"
                                      CommandParameter="Humidity"
                                      BackgroundColor="{Binding HumidityBtnBg}"
                                      TextColor="White"
-                                     FontSize="10" FontAttributes="Bold" HeightRequest="32" CornerRadius="6" Padding="10,0" />
+                                     FontSize="10" FontAttributes="Bold" HeightRequest="30" CornerRadius="6" Padding="10,0" />
 
-                            <Button Text="⏱️ Pressure"
+                            <Button Text="Pressure"
                                      Command="{Binding SelectChannelCommand}"
                                      CommandParameter="Pressure"
                                      BackgroundColor="{Binding PressureBtnBg}"
                                      TextColor="White"
-                                     FontSize="10" FontAttributes="Bold" HeightRequest="32" CornerRadius="6" Padding="10,0" />
+                                     FontSize="10" FontAttributes="Bold" HeightRequest="30" CornerRadius="6" Padding="10,0" />
 
                         </HorizontalStackLayout>
 
@@ -246,23 +240,23 @@
                                                Spacing="6"
                                                HorizontalOptions="{OnIdiom Phone=Start, Default=End}"
                                                VerticalOptions="Center">
-                            <Label Text="Jump to Event:" FontSize="10" FontAttributes="Bold" TextColor="#64748B" VerticalOptions="Center" />
+                            <Label Text="Events:" FontSize="10" FontAttributes="Bold" TextColor="#64748B" VerticalOptions="Center" />
 
-                            <Button Text="📊 Normal History"
+                            <Button Text="Baseline"
                                     Command="{Binding ResetToHistoricalStreamCommand}"
-                                    BackgroundColor="#1E293B" TextColor="#38BDF8" FontSize="10" HeightRequest="30" CornerRadius="6" Padding="8,0" />
+                                    BackgroundColor="#1E293B" TextColor="#38BDF8" FontSize="10" HeightRequest="28" CornerRadius="6" Padding="8,0" />
 
-                            <Button Text="⚡ Spike (-33°C)"
+                            <Button Text="Spike (-33°C)"
                                     Command="{Binding ZoomToSpikeFaultCommand}"
-                                    BackgroundColor="#2E1065" TextColor="#C084FC" FontSize="10" HeightRequest="30" CornerRadius="6" Padding="8,0" />
+                                    BackgroundColor="#2E1065" TextColor="#C084FC" FontSize="10" HeightRequest="28" CornerRadius="6" Padding="8,0" />
 
-                            <Button Text="❄️ Freeze (Flatline)"
+                            <Button Text="Freeze"
                                     Command="{Binding ZoomToFreezeFaultCommand}"
-                                    BackgroundColor="#0C4A6E" TextColor="#38BDF8" FontSize="10" HeightRequest="30" CornerRadius="6" Padding="8,0" />
+                                    BackgroundColor="#0C4A6E" TextColor="#38BDF8" FontSize="10" HeightRequest="28" CornerRadius="6" Padding="8,0" />
 
-                            <Button Text="🔥 Heatwave (46°C)"
+                            <Button Text="Heatwave (46°C)"
                                     Command="{Binding ZoomToHeatwaveCommand}"
-                                    BackgroundColor="#451A03" TextColor="#FBBF24" FontSize="10" HeightRequest="30" CornerRadius="6" Padding="8,0" />
+                                    BackgroundColor="#451A03" TextColor="#FBBF24" FontSize="10" HeightRequest="28" CornerRadius="6" Padding="8,0" />
                         </HorizontalStackLayout>
                     </Grid>
                 </Border>
@@ -326,109 +320,105 @@
                     <Grid ColumnDefinitions="{OnIdiom Phone='*', Default='1.1*,0.9*'}"
                           RowDefinitions="{OnIdiom Phone='Auto,Auto', Default='Auto'}"
                           ColumnSpacing="14"
-                          RowSpacing="14">
-
-                        <!-- Left: Test Inputs & Presets -->
+                          RowSpacing="14">                        <!-- Left: Test Inputs & Presets -->
                         <Border Grid.Row="{OnIdiom Phone=0, Default=0}" Grid.Column="{OnIdiom Phone=0, Default=0}"
-                                BackgroundColor="#131B2E" Stroke="#1E293B" Padding="16" StrokeShape="RoundRectangle 12">
-                            <VerticalStackLayout Spacing="12">
-                                <Label Text="Test Sensor Readings &amp; Inject Faults" FontSize="13" FontAttributes="Bold" TextColor="#38BDF8" />
-                                <Label Text="Simulate realistic sensor hardware malfunctions vs genuine severe weather events to test thermodynamic self-healing:" FontSize="11" TextColor="#94A3B8" />
+                                BackgroundColor="#131B2E" Stroke="#1E293B" Padding="16" StrokeShape="RoundRectangle 10">
+                            <VerticalStackLayout Spacing="10">
+                                <Label Text="Fault Simulation" FontSize="13" FontAttributes="Bold" TextColor="#38BDF8" />
+                                <Label Text="Select a scenario or enter telemetry values to test diagnostic classification and reconstruction:" FontSize="11" TextColor="#94A3B8" />
 
                                 <!-- Scenarios -->
-                                <Label Text="1-Click Demonstration Scenarios:" FontSize="11" FontAttributes="Bold" TextColor="#CBD5E1" />
+                                <Label Text="Preset Scenarios:" FontSize="10" FontAttributes="Bold" TextColor="#64748B" />
                                 <FlexLayout Wrap="Wrap" JustifyContent="Start">
-                                    <Button Text="☀️ Normal Tropical Day" Command="{Binding LoadPresetNormalCommand}"
-                                            BackgroundColor="#1E293B" TextColor="#34D399" FontSize="10" HeightRequest="32" CornerRadius="6" Margin="0,0,6,6" Padding="10,0" />
-                                    <Button Text="⚡ Glitched Spike (-33°C)" Command="{Binding LoadPresetSpikeCommand}"
-                                            BackgroundColor="#1E293B" TextColor="#F87171" FontSize="10" HeightRequest="32" CornerRadius="6" Margin="0,0,6,6" Padding="10,0" />
-                                    <Button Text="❄️ Stuck / Flatline Sensor" Command="{Binding LoadPresetFreezeCommand}"
-                                            BackgroundColor="#1E293B" TextColor="#60A5FA" FontSize="10" HeightRequest="32" CornerRadius="6" Margin="0,0,6,6" Padding="10,0" />
-                                    <Button Text="🔥 Tropical Heatwave (46.5°C)" Command="{Binding LoadPresetHeatwaveCommand}"
-                                            BackgroundColor="#1E293B" TextColor="#FBBF24" FontSize="10" HeightRequest="32" CornerRadius="6" Margin="0,0,6,6" Padding="10,0" />
-                                    <Button Text="🌀 Monsoon Storm (Low P)" Command="{Binding LoadPresetStormCommand}"
-                                            BackgroundColor="#1E293B" TextColor="#A78BFA" FontSize="10" HeightRequest="32" CornerRadius="6" Margin="0,0,6,6" Padding="10,0" />
+                                    <Button Text="Normal" Command="{Binding LoadPresetNormalCommand}"
+                                            BackgroundColor="#1E293B" TextColor="#34D399" FontSize="10" HeightRequest="30" CornerRadius="6" Margin="0,0,6,6" Padding="10,0" />
+                                    <Button Text="Spike (-33°C)" Command="{Binding LoadPresetSpikeCommand}"
+                                            BackgroundColor="#1E293B" TextColor="#F87171" FontSize="10" HeightRequest="30" CornerRadius="6" Margin="0,0,6,6" Padding="10,0" />
+                                    <Button Text="Sensor Freeze" Command="{Binding LoadPresetFreezeCommand}"
+                                            BackgroundColor="#1E293B" TextColor="#60A5FA" FontSize="10" HeightRequest="30" CornerRadius="6" Margin="0,0,6,6" Padding="10,0" />
+                                    <Button Text="Heatwave (46°C)" Command="{Binding LoadPresetHeatwaveCommand}"
+                                            BackgroundColor="#1E293B" TextColor="#FBBF24" FontSize="10" HeightRequest="30" CornerRadius="6" Margin="0,0,6,6" Padding="10,0" />
+                                    <Button Text="Low Pressure" Command="{Binding LoadPresetStormCommand}"
+                                            BackgroundColor="#1E293B" TextColor="#A78BFA" FontSize="10" HeightRequest="30" CornerRadius="6" Margin="0,0,6,6" Padding="10,0" />
                                 </FlexLayout>
 
                                 <BoxView HeightRequest="1" Color="#1E293B" Margin="0,2" />
 
                                 <!-- Values Input -->
-                                <Label Text="Station Telemetry Inputs (3 Physical Channels):" FontSize="11" FontAttributes="Bold" TextColor="#CBD5E1" />
+                                <Label Text="Telemetry Inputs:" FontSize="10" FontAttributes="Bold" TextColor="#64748B" />
                                 <Grid ColumnDefinitions="{OnIdiom Phone='*', Default='*,*,*'}" ColumnSpacing="8" RowSpacing="8">
                                     <VerticalStackLayout Grid.Column="0" Spacing="3">
-                                        <Label Text="Air Temperature (°C)" FontSize="10" TextColor="#94A3B8" />
-                                        <Entry Text="{Binding TestTemperature}" Keyboard="Numeric" BackgroundColor="#0F172A" TextColor="#E2E8F0" HeightRequest="36" FontSize="11" />
+                                        <Label Text="Temperature (°C)" FontSize="10" TextColor="#94A3B8" />
+                                        <Entry Text="{Binding TestTemperature}" Keyboard="Numeric" BackgroundColor="#0F172A" TextColor="#E2E8F0" HeightRequest="34" FontSize="11" />
                                     </VerticalStackLayout>
                                     <VerticalStackLayout Grid.Column="{OnIdiom Phone=0, Default=1}" Grid.Row="{OnIdiom Phone=1, Default=0}" Spacing="3">
-                                        <Label Text="Relative Humidity (%)" FontSize="10" TextColor="#94A3B8" />
-                                        <Entry Text="{Binding TestHumidity}" Keyboard="Numeric" BackgroundColor="#0F172A" TextColor="#E2E8F0" HeightRequest="36" FontSize="11" />
+                                        <Label Text="Humidity (%)" FontSize="10" TextColor="#94A3B8" />
+                                        <Entry Text="{Binding TestHumidity}" Keyboard="Numeric" BackgroundColor="#0F172A" TextColor="#E2E8F0" HeightRequest="34" FontSize="11" />
                                     </VerticalStackLayout>
                                     <VerticalStackLayout Grid.Column="{OnIdiom Phone=0, Default=2}" Grid.Row="{OnIdiom Phone=2, Default=0}" Spacing="3">
                                         <Label Text="Pressure (hPa)" FontSize="10" TextColor="#94A3B8" />
-                                        <Entry Text="{Binding TestPressure}" Keyboard="Numeric" BackgroundColor="#0F172A" TextColor="#E2E8F0" HeightRequest="36" FontSize="11" />
+                                        <Entry Text="{Binding TestPressure}" Keyboard="Numeric" BackgroundColor="#0F172A" TextColor="#E2E8F0" HeightRequest="34" FontSize="11" />
                                     </VerticalStackLayout>
                                 </Grid>
 
-                                <Button Text="🔍 Run Diagnosis &amp; Self-Healing"
+                                <Button Text="Run Diagnostics"
                                         Command="{Binding RunTestInferenceCommand}"
                                         BackgroundColor="#0284C7"
                                         TextColor="White"
                                         FontAttributes="Bold"
-                                        FontSize="12"
-                                        HeightRequest="40"
+                                        FontSize="11"
+                                        HeightRequest="36"
                                         CornerRadius="6" />
                             </VerticalStackLayout>
                         </Border>
 
-                        <!-- Right: Diagnosis & Thermodynamic Self-Healing Result -->
+                        <!-- Right: Diagnosis & Result -->
                         <Border Grid.Row="{OnIdiom Phone=1, Default=0}" Grid.Column="{OnIdiom Phone=0, Default=1}"
-                                BackgroundColor="#131B2E" Stroke="#1E293B" Padding="16" StrokeShape="RoundRectangle 12">
-                            <VerticalStackLayout Spacing="12">
-                                <Label Text="Diagnosis &amp; Thermodynamic Self-Healing" FontSize="13" FontAttributes="Bold" TextColor="#38BDF8" />
+                                BackgroundColor="#131B2E" Stroke="#1E293B" Padding="16" StrokeShape="RoundRectangle 10">
+                            <VerticalStackLayout Spacing="10">
+                                <Label Text="Diagnostic Results" FontSize="13" FontAttributes="Bold" TextColor="#38BDF8" />
 
                                 <!-- Status Badge -->
-                                <Border BackgroundColor="#0F172A" Stroke="#1E293B" Padding="14,10" StrokeShape="RoundRectangle 8">
-                                    <VerticalStackLayout Spacing="6">
-                                        <Label Text="SYSTEM VERDICT" FontSize="10" FontAttributes="Bold" TextColor="#64748B" />
-                                        <HorizontalStackLayout Spacing="10" VerticalOptions="Center">
-                                            <Border BackgroundColor="{Binding ResultBadgeColor}" Padding="10,4" StrokeShape="RoundRectangle 6">
-                                                <Label Text="{Binding ResultStatusBadge}" FontSize="12" FontAttributes="Bold" TextColor="White" />
+                                <Border BackgroundColor="#0F172A" Stroke="#1E293B" Padding="12,8" StrokeShape="RoundRectangle 6">
+                                    <VerticalStackLayout Spacing="4">
+                                        <Label Text="VERDICT" FontSize="9" FontAttributes="Bold" TextColor="#64748B" />
+                                        <HorizontalStackLayout Spacing="8" VerticalOptions="Center">
+                                            <Border BackgroundColor="{Binding ResultBadgeColor}" Padding="8,3" StrokeShape="RoundRectangle 4">
+                                                <Label Text="{Binding ResultStatusBadge}" FontSize="11" FontAttributes="Bold" TextColor="White" />
                                             </Border>
-                                            <Label Text="{Binding ResultConfidenceText}" FontSize="12" TextColor="#CBD5E1" VerticalOptions="Center" />
+                                            <Label Text="{Binding ResultConfidenceText}" FontSize="11" TextColor="#CBD5E1" VerticalOptions="Center" />
                                         </HorizontalStackLayout>
                                     </VerticalStackLayout>
                                 </Border>
 
                                 <!-- Which Problem & Which Sensor -->
-                                <Border BackgroundColor="#0F172A" Stroke="#1E293B" Padding="12" StrokeShape="RoundRectangle 8">
-                                    <VerticalStackLayout Spacing="6">
-                                        <Label Text="FAULT CLASSIFICATION:" FontSize="10" FontAttributes="Bold" TextColor="#64748B" />
-                                        <Label Text="{Binding ResultFaultTypeSimple}" FontSize="13" FontAttributes="Bold" TextColor="#F59E0B" />
-                                        <Label Text="AFFECTED SENSOR:" FontSize="10" FontAttributes="Bold" TextColor="#64748B" Margin="0,4,0,0" />
-                                        <Label Text="{Binding ResultAffectedSensorsText}" FontSize="12" FontAttributes="Bold" TextColor="#F87171" />
+                                <Border BackgroundColor="#0F172A" Stroke="#1E293B" Padding="12,8" StrokeShape="RoundRectangle 6">
+                                    <VerticalStackLayout Spacing="4">
+                                        <Label Text="CLASSIFICATION:" FontSize="9" FontAttributes="Bold" TextColor="#64748B" />
+                                        <Label Text="{Binding ResultFaultTypeSimple}" FontSize="12" FontAttributes="Bold" TextColor="#F59E0B" />
+                                        <Label Text="AFFECTED SENSOR:" FontSize="9" FontAttributes="Bold" TextColor="#64748B" Margin="0,3,0,0" />
+                                        <Label Text="{Binding ResultAffectedSensorsText}" FontSize="11" FontAttributes="Bold" TextColor="#F87171" />
                                     </VerticalStackLayout>
                                 </Border>
 
-                                <!-- Plain English Meteorological Explanation -->
-                                <Border BackgroundColor="#0F172A" Stroke="#1E293B" Padding="12" StrokeShape="RoundRectangle 8">
-                                    <VerticalStackLayout Spacing="4">
-                                        <Label Text="METEOROLOGICAL REASONING:" FontSize="10" FontAttributes="Bold" TextColor="#38BDF8" />
+                                <!-- Analysis Explanation -->
+                                <Border BackgroundColor="#0F172A" Stroke="#1E293B" Padding="12,8" StrokeShape="RoundRectangle 6">
+                                    <VerticalStackLayout Spacing="3">
+                                        <Label Text="ANALYSIS:" FontSize="9" FontAttributes="Bold" TextColor="#38BDF8" />
                                         <Label Text="{Binding ResultExplanationSimple}" FontSize="11" TextColor="#E2E8F0" LineBreakMode="WordWrap" />
                                     </VerticalStackLayout>
                                 </Border>
 
-                                <!-- Thermodynamic Self-Healing Card -->
-                                <Border BackgroundColor="#0C2138" Stroke="#0284C7" Padding="12" StrokeShape="RoundRectangle 8">
-                                    <VerticalStackLayout Spacing="6">
+                                <!-- Reconstruction Card -->
+                                <Border BackgroundColor="#0C2138" Stroke="#0284C7" Padding="12,8" StrokeShape="RoundRectangle 6">
+                                    <VerticalStackLayout Spacing="4">
                                         <Grid ColumnDefinitions="*,Auto" VerticalOptions="Center">
-                                            <Label Text="PHYSICS-BASED SELF-HEALING:" FontSize="10" FontAttributes="Bold" TextColor="#38BDF8" VerticalOptions="Center" />
-                                            <Border Grid.Column="1" BackgroundColor="{Binding HealingBadgeColor}" Padding="6,2" StrokeShape="RoundRectangle 4">
+                                            <Label Text="RECONSTRUCTED VALUE:" FontSize="9" FontAttributes="Bold" TextColor="#38BDF8" VerticalOptions="Center" />
+                                            <Border Grid.Column="1" BackgroundColor="{Binding HealingBadgeColor}" Padding="5,2" StrokeShape="RoundRectangle 4">
                                                 <Label Text="{Binding HealingMethodText}" FontSize="9" FontAttributes="Bold" TextColor="White" />
                                             </Border>
                                         </Grid>
                                         <Label Text="{Binding ReconstructionDetailsText}" FontSize="11" TextColor="#F1F5F9" LineBreakMode="WordWrap" />
-                                        <Label Text="Physics Model: Magnus-Tetens Saturation Vapor Pressure &amp; Hydrostatic Lapse Rate for Vellore (214m elevation)."
-                                               FontSize="9" TextColor="#94A3B8" FontAttributes="Italic" />
                                     </VerticalStackLayout>
                                 </Border>
                             </VerticalStackLayout>
@@ -443,13 +433,10 @@
             <ScrollView IsVisible="{Binding IsModelsTab}" InputTransparent="{Binding IsNotModelsTab}">
                 <VerticalStackLayout Spacing="14">
                     <!-- Benchmark Header -->
-                    <Border BackgroundColor="#131B2E" Stroke="#1E293B" Padding="16" StrokeShape="RoundRectangle 12">
-                        <VerticalStackLayout Spacing="6">
-                            <HorizontalStackLayout Spacing="8" VerticalOptions="Center">
-                                <Label Text="🏆" FontSize="16" VerticalOptions="Center" />
-                                <Label Text="AI Model Evaluation &amp; TreeSHAP Explainability" FontSize="14" FontAttributes="Bold" TextColor="#38BDF8" VerticalOptions="Center" />
-                            </HorizontalStackLayout>
-                            <Label Text="Empirical benchmark across 32,774 ISRO AWS observations and global feature attributions across the 13 domain features:"
+                    <Border BackgroundColor="#131B2E" Stroke="#1E293B" Padding="14,12" StrokeShape="RoundRectangle 10">
+                        <VerticalStackLayout Spacing="3">
+                            <Label Text="Model Evaluation &amp; Explainability" FontSize="13" FontAttributes="Bold" TextColor="#38BDF8" />
+                            <Label Text="Benchmark comparison and TreeSHAP feature attributions on ISRO AWS data:"
                                    FontSize="11" TextColor="#94A3B8" />
                         </VerticalStackLayout>
                     </Border>
@@ -462,11 +449,11 @@
 
                         <!-- Left Column: SHAP Feature Attribution -->
                         <Border Grid.Row="0" Grid.Column="0"
-                                BackgroundColor="#131B2E" Stroke="#1E293B" Padding="16" StrokeShape="RoundRectangle 12">
-                            <VerticalStackLayout Spacing="12">
+                                BackgroundColor="#131B2E" Stroke="#1E293B" Padding="16" StrokeShape="RoundRectangle 10">
+                            <VerticalStackLayout Spacing="10">
                                 <VerticalStackLayout Spacing="2">
-                                    <Label Text="What Factors Matter Most? (TreeSHAP)" FontSize="13" FontAttributes="Bold" TextColor="#38BDF8" />
-                                    <Label Text="Global Shapley feature attribution ranking for the 13 meteorological features:" FontSize="10" TextColor="#94A3B8" />
+                                    <Label Text="Feature Importance (TreeSHAP)" FontSize="13" FontAttributes="Bold" TextColor="#38BDF8" />
+                                    <Label Text="Top contributing features in anomaly detection:" FontSize="10" TextColor="#94A3B8" />
                                 </VerticalStackLayout>
 
                                 <!-- LiveCharts2 Horizontal Bar Chart -->
@@ -476,9 +463,9 @@
                                                     MinimumHeightRequest="270"
                                                     TooltipPosition="Top" />
 
-                                <Border BackgroundColor="#0F172A" Stroke="#1E293B" Padding="12,10" StrokeShape="RoundRectangle 8">
-                                    <VerticalStackLayout Spacing="4">
-                                        <Label Text="💡 KEY METEOROLOGICAL INSIGHT:" FontSize="9" FontAttributes="Bold" TextColor="#38BDF8" />
+                                <Border BackgroundColor="#0F172A" Stroke="#1E293B" Padding="10,8" StrokeShape="RoundRectangle 6">
+                                    <VerticalStackLayout Spacing="3">
+                                        <Label Text="KEY FINDING:" FontSize="9" FontAttributes="Bold" TextColor="#38BDF8" />
                                         <Label Text="{Binding ShapPrimaryInsight}"
                                                FontSize="10" TextColor="#E2E8F0" LineBreakMode="WordWrap" />
                                     </VerticalStackLayout>
@@ -542,10 +529,10 @@
                             </VerticalStackLayout>
 
                             <!-- Production Decision Callout -->
-                            <Border BackgroundColor="#0C2138" Stroke="#0284C7" Padding="12" StrokeShape="RoundRectangle 10">
+                            <Border BackgroundColor="#0C2138" Stroke="#0284C7" Padding="12" StrokeShape="RoundRectangle 8">
                                 <VerticalStackLayout Spacing="4">
-                                    <Label Text="🎯 Production Selection Rationale" FontSize="11" FontAttributes="Bold" TextColor="#38BDF8" />
-                                    <Label Text="Isolation Forest achieves 87,650 obs/sec inference throughput (3x faster than SVM, 5.5x faster than LOF) with sub-second fit time (0.19s) and native TreeSHAP explainability."
+                                    <Label Text="Selected Model: Isolation Forest" FontSize="11" FontAttributes="Bold" TextColor="#38BDF8" />
+                                    <Label Text="Delivers fastest inference throughput with sub-second training and native TreeSHAP explainability."
                                            FontSize="10" TextColor="#E2E8F0" LineBreakMode="WordWrap" />
                                 </VerticalStackLayout>
                             </Border>

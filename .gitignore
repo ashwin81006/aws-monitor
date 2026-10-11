@@ -12,12 +12,13 @@ env/
 
 # Data files
 *.csv
+!data/raw/aws_dataset.csv
 
 # Trained models
 models/*.joblib
-models/*.pkl
 models/*.h5
 models/*.keras
+!models/*.pkl
 
 # IDE
 .vscode/
