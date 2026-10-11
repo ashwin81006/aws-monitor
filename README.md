@@ -83,14 +83,14 @@ python src/ml/test_models.py
 python src/validation/validate.py
 ```
 
-### 2. Launch the FastAPI Backend
+### 2. Live Cloud API & Interactive Documentation
 
-```bash
-uvicorn src.api.app:app --host 0.0.0.0 --port 8000 --reload
-```
-Interactive API documentation will be available at:
-* Swagger UI: [http://localhost:8000/docs](http://localhost:8000/docs)
-* Health Check: [http://localhost:8000/health](http://localhost:8000/health)
+The production REST API is deployed on Vercel:
+* **Interactive Swagger UI:** [https://aws-monitor-api.vercel.app/docs](https://aws-monitor-api.vercel.app/docs)
+* **Publication ReDoc:** [https://aws-monitor-api.vercel.app/redoc](https://aws-monitor-api.vercel.app/redoc)
+* **Live Health Check:** [https://aws-monitor-api.vercel.app/health](https://aws-monitor-api.vercel.app/health)
+
+*(Or run locally: `uvicorn src.api.app:app --host 0.0.0.0 --port 8000 --reload`)*
 
 ### 3. Launch the .NET MAUI Desktop App
 

@@ -33,27 +33,11 @@ public class ApiService : IApiService
     {
         // 1. Check if user previously saved a custom URL in Preferences
         string saved = Preferences.Default.Get("AwsMonitor_ApiBaseUrl", string.Empty);
-        if (!string.IsNullOrWhiteSpace(saved))
+        if (!string.IsNullOrWhiteSpace(saved) && !saved.Contains("127.0.0.1") && !saved.Contains("10.232.250.170"))
             return saved;
 
-        // 2. Platform-aware defaults
-        if (DeviceInfo.Current.Platform == DevicePlatform.Android)
-        {
-            if (DeviceInfo.Current.DeviceType == DeviceType.Virtual)
-            {
-                // Android emulator loopback alias to host machine
-                return "http://10.0.2.2:8000";
-            }
-            // Physical mobile device on local WiFi
-            return "http://10.232.250.170:8000";
-        }
-        else if (DeviceInfo.Current.Platform == DevicePlatform.iOS)
-        {
-            return "http://10.232.250.170:8000";
-        }
-
-        // Desktop Windows / macOS default
-        return "http://127.0.0.1:8000";
+        // Live production cloud API deployed on Vercel
+        return "https://aws-monitor-api.vercel.app";
     }
 
     public ApiService()
@@ -62,7 +46,7 @@ public class ApiService : IApiService
         _http = new HttpClient
         {
             BaseAddress = new Uri(_baseUrl),
-            Timeout = TimeSpan.FromSeconds(6)
+            Timeout = TimeSpan.FromSeconds(15)
         };
     }
 
