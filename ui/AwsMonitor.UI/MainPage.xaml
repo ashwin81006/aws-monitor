@@ -10,9 +10,6 @@
 
     <Grid RowDefinitions="Auto,Auto,*" Margin="{OnIdiom Phone='10,8', Default='16,12'}" RowSpacing="10">
 
-        <!-- ========================================================= -->
-        <!-- ROW 0: CLEAN HEADER                                       -->
-        <!-- ========================================================= -->
         <Border Grid.Row="0"
                 BackgroundColor="#131B2E"
                 Stroke="#1E293B"
@@ -46,9 +43,6 @@
             </VerticalStackLayout>
         </Border>
 
-        <!-- ========================================================= -->
-        <!-- ROW 1: NAVIGATION TABS                                    -->
-        <!-- ========================================================= -->
         <Border Grid.Row="1"
                 BackgroundColor="#131B2E"
                 Stroke="#1E293B"
@@ -110,23 +104,15 @@
             </Grid>
         </Border>
 
-        <!-- ========================================================= -->
-        <!-- ROW 2: DYNAMIC TAB VIEW BODY (Clean Boolean Visibility)   -->
-        <!-- ========================================================= -->
         <Grid Grid.Row="2">
 
-            <!-- ===================================================== -->
-            <!-- TAB: OVERVIEW (Key Summary Cards + Quick Insights)    -->
-            <!-- ===================================================== -->
             <ScrollView IsVisible="{Binding IsOverviewTab}" InputTransparent="{Binding IsNotOverviewTab}">
                 <VerticalStackLayout Spacing="14">
-                    <!-- 4 WeatherTrust Summary KPI Cards -->
                     <Grid ColumnDefinitions="{OnIdiom Phone='*,*', Default='*,*,*,*'}"
                           RowDefinitions="{OnIdiom Phone='Auto,Auto', Default='Auto'}"
                           ColumnSpacing="10"
                           RowSpacing="10">
 
-                        <!-- Card 1: Total Observations -->
                         <Border Grid.Row="{OnIdiom Phone=0, Default=0}" Grid.Column="{OnIdiom Phone=0, Default=0}"
                                 BackgroundColor="#131B2E" Stroke="#1E293B" Padding="14,12" StrokeShape="RoundRectangle 10">
                             <VerticalStackLayout Spacing="3">
@@ -136,7 +122,6 @@
                             </VerticalStackLayout>
                         </Border>
 
-                        <!-- Card 2: Sensor Faults -->
                         <Border Grid.Row="{OnIdiom Phone=0, Default=0}" Grid.Column="{OnIdiom Phone=1, Default=1}"
                                 BackgroundColor="#131B2E" Stroke="#1E293B" Padding="14,12" StrokeShape="RoundRectangle 10">
                             <VerticalStackLayout Spacing="3">
@@ -146,7 +131,6 @@
                             </VerticalStackLayout>
                         </Border>
 
-                        <!-- Card 3: Weather Extremes -->
                         <Border Grid.Row="{OnIdiom Phone=1, Default=0}" Grid.Column="{OnIdiom Phone=0, Default=2}"
                                 BackgroundColor="#131B2E" Stroke="#1E293B" Padding="14,12" StrokeShape="RoundRectangle 10">
                             <VerticalStackLayout Spacing="3">
@@ -156,7 +140,6 @@
                             </VerticalStackLayout>
                         </Border>
 
-                        <!-- Card 4: Station Reliability -->
                         <Border Grid.Row="{OnIdiom Phone=1, Default=0}" Grid.Column="{OnIdiom Phone=1, Default=3}"
                                 BackgroundColor="#131B2E" Stroke="#1E293B" Padding="14,12" StrokeShape="RoundRectangle 10">
                             <VerticalStackLayout Spacing="3">
@@ -172,7 +155,6 @@
                         </Border>
                     </Grid>
 
-                    <!-- Station Overview Summary Card -->
                     <Border BackgroundColor="#131B2E" Stroke="#1E293B" Padding="16" StrokeShape="RoundRectangle 10">
                         <VerticalStackLayout Spacing="8">
                             <Label Text="Station Quality Control" FontSize="13" FontAttributes="Bold" TextColor="#38BDF8" />
@@ -201,19 +183,14 @@
                 </VerticalStackLayout>
             </ScrollView>
 
-            <!-- ===================================================== -->
-            <!-- TAB: TELEMETRY EXPLORER (The Interactive Graph!)      -->
-            <!-- ===================================================== -->
             <Grid IsVisible="{Binding IsTelemetryTab}" InputTransparent="{Binding IsNotTelemetryTab}" RowDefinitions="Auto,*,Auto" RowSpacing="10">
 
-                <!-- Channel Toggles & Preset Jump Buttons -->
                 <Border Grid.Row="0"
                         BackgroundColor="#131B2E"
                         Stroke="#1E293B"
                         Padding="12,10"
                         StrokeShape="RoundRectangle 10">
                     <Grid ColumnDefinitions="{OnIdiom Phone='*', Default='Auto,*'}" RowDefinitions="{OnIdiom Phone='Auto,Auto', Default='*'}" RowSpacing="8">
-                        <!-- Sensor Channel Buttons (Scrollable on mobile) -->
                         <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
                             <HorizontalStackLayout Spacing="6" VerticalOptions="Center">
                                 <Label Text="Channel:" FontSize="11" FontAttributes="Bold" TextColor="#64748B" VerticalOptions="Center" Margin="0,0,4,0" />
@@ -242,7 +219,6 @@
                             </HorizontalStackLayout>
                         </ScrollView>
 
-                        <!-- Historical Event Quick-Jumps (Scrollable on mobile) -->
                         <ScrollView Grid.Row="{OnIdiom Phone=1, Default=0}"
                                     Grid.Column="{OnIdiom Phone=0, Default=1}"
                                     Orientation="Horizontal"
@@ -271,7 +247,6 @@
                     </Grid>
                 </Border>
 
-                <!-- THE CHART CONTAINER (Guaranteed Positive Height) -->
                 <Border Grid.Row="1"
                         BackgroundColor="#131B2E"
                         Stroke="#1E293B"
@@ -283,7 +258,6 @@
                             <Label Text="{Binding ChartSubtitle}" FontSize="11" TextColor="#94A3B8" />
                         </VerticalStackLayout>
 
-                        <!-- LiveCharts2 Cartesian Chart Control -->
                         <lvc:CartesianChart Grid.Row="1"
                                             Series="{Binding ChartSeries}"
                                             XAxes="{Binding ChartXAxes}"
@@ -293,7 +267,6 @@
                     </Grid>
                 </Border>
 
-                <!-- Bottom Telemetry Legend & Stat Pills -->
                 <Border Grid.Row="2"
                         BackgroundColor="#131B2E"
                         Stroke="#1E293B"
@@ -322,24 +295,17 @@
                 </Border>
             </Grid>
 
-            <!-- ===================================================== -->
-            <!-- TAB: TEST A SENSOR / FAULT SIMULATOR                  -->
-                   <!-- ===================================================== -->
-            <!-- TAB: TEST A SENSOR & THERMODYNAMIC SELF-HEALING       -->
-            <!-- ===================================================== -->
             <ScrollView IsVisible="{Binding IsTesterTab}" InputTransparent="{Binding IsNotTesterTab}">
                 <VerticalStackLayout Spacing="14">
                     <Grid ColumnDefinitions="{OnIdiom Phone='*', Default='1.1*,0.9*'}"
                           RowDefinitions="{OnIdiom Phone='Auto,Auto', Default='Auto'}"
                           ColumnSpacing="14"
-                          RowSpacing="14">                        <!-- Left: Test Inputs & Presets -->
-                        <Border Grid.Row="{OnIdiom Phone=0, Default=0}" Grid.Column="{OnIdiom Phone=0, Default=0}"
+                          RowSpacing="14">                        <Border Grid.Row="{OnIdiom Phone=0, Default=0}" Grid.Column="{OnIdiom Phone=0, Default=0}"
                                 BackgroundColor="#131B2E" Stroke="#1E293B" Padding="16" StrokeShape="RoundRectangle 10">
                             <VerticalStackLayout Spacing="10">
                                 <Label Text="Fault Simulation" FontSize="13" FontAttributes="Bold" TextColor="#38BDF8" />
                                 <Label Text="Select a scenario or enter telemetry values to test diagnostic classification and reconstruction:" FontSize="11" TextColor="#94A3B8" />
 
-                                <!-- Scenarios -->
                                 <Label Text="Preset Scenarios:" FontSize="{OnIdiom Phone=12, Default=10}" FontAttributes="Bold" TextColor="#64748B" />
                                 <FlexLayout Wrap="Wrap" JustifyContent="Start">
                                     <Button Text="Normal" Command="{Binding LoadPresetNormalCommand}"
@@ -356,7 +322,6 @@
 
                                 <BoxView HeightRequest="1" Color="#1E293B" Margin="0,4" />
 
-                                <!-- Values Input -->
                                 <Label Text="Telemetry Inputs:" FontSize="{OnIdiom Phone=12, Default=10}" FontAttributes="Bold" TextColor="#64748B" />
                                 <Grid ColumnDefinitions="{OnIdiom Phone='*', Default='*,*,*'}"
                                       RowDefinitions="{OnIdiom Phone='Auto,Auto,Auto', Default='Auto'}"
@@ -426,13 +391,11 @@
                             </VerticalStackLayout>
                         </Border>
 
-                        <!-- Right: Diagnosis & Result -->
                         <Border Grid.Row="{OnIdiom Phone=1, Default=0}" Grid.Column="{OnIdiom Phone=0, Default=1}"
                                 BackgroundColor="#131B2E" Stroke="#1E293B" Padding="16" StrokeShape="RoundRectangle 10">
                             <VerticalStackLayout Spacing="10">
                                 <Label Text="Diagnostic Results" FontSize="13" FontAttributes="Bold" TextColor="#38BDF8" />
 
-                                <!-- Status Badge -->
                                 <Border BackgroundColor="#0F172A" Stroke="#1E293B" Padding="12,8" StrokeShape="RoundRectangle 6">
                                     <VerticalStackLayout Spacing="4">
                                         <Label Text="VERDICT" FontSize="9" FontAttributes="Bold" TextColor="#64748B" />
@@ -445,7 +408,6 @@
                                     </VerticalStackLayout>
                                 </Border>
 
-                                <!-- Which Problem & Which Sensor -->
                                 <Border BackgroundColor="#0F172A" Stroke="#1E293B" Padding="12,8" StrokeShape="RoundRectangle 6">
                                     <VerticalStackLayout Spacing="4">
                                         <Label Text="CLASSIFICATION:" FontSize="9" FontAttributes="Bold" TextColor="#64748B" />
@@ -455,7 +417,6 @@
                                     </VerticalStackLayout>
                                 </Border>
 
-                                <!-- Analysis Explanation -->
                                 <Border BackgroundColor="#0F172A" Stroke="#1E293B" Padding="12,8" StrokeShape="RoundRectangle 6">
                                     <VerticalStackLayout Spacing="3">
                                         <Label Text="ANALYSIS:" FontSize="9" FontAttributes="Bold" TextColor="#38BDF8" />
@@ -463,7 +424,6 @@
                                     </VerticalStackLayout>
                                 </Border>
 
-                                <!-- Reconstruction Card -->
                                 <Border BackgroundColor="#0C2138" Stroke="#0284C7" Padding="12,8" StrokeShape="RoundRectangle 6">
                                     <VerticalStackLayout Spacing="4">
                                         <Grid ColumnDefinitions="*,Auto" VerticalOptions="Center">
@@ -481,12 +441,8 @@
                 </VerticalStackLayout>
             </ScrollView>
 
-            <!-- ===================================================== -->
-            <!-- TAB: AI MODEL BENCHMARK & TREE-SHAP EXPLAINABILITY     -->
-            <!-- ===================================================== -->
             <ScrollView IsVisible="{Binding IsModelsTab}" InputTransparent="{Binding IsNotModelsTab}">
                 <VerticalStackLayout Spacing="14">
-                    <!-- Benchmark Header -->
                     <Border BackgroundColor="#131B2E" Stroke="#1E293B" Padding="14,12" StrokeShape="RoundRectangle 10">
                         <VerticalStackLayout Spacing="3">
                             <Label Text="Model Evaluation &amp; Explainability" FontSize="13" FontAttributes="Bold" TextColor="#38BDF8" />
@@ -495,13 +451,11 @@
                         </VerticalStackLayout>
                     </Border>
 
-                    <!-- Split Grid: Left = SHAP Feature Importance, Right = Models Benchmark -->
                     <Grid ColumnDefinitions="{OnIdiom Phone='*', Default='1.05*,0.95*'}"
                           RowDefinitions="{OnIdiom Phone='Auto,Auto', Default='Auto'}"
                           ColumnSpacing="14"
                           RowSpacing="14">
 
-                        <!-- Left Column: SHAP Feature Attribution -->
                         <Border Grid.Row="0" Grid.Column="0"
                                 BackgroundColor="#131B2E" Stroke="#1E293B" Padding="16" StrokeShape="RoundRectangle 10">
                             <VerticalStackLayout Spacing="10">
@@ -510,7 +464,6 @@
                                     <Label Text="Top contributing features in anomaly detection:" FontSize="10" TextColor="#94A3B8" />
                                 </VerticalStackLayout>
 
-                                <!-- LiveCharts2 Horizontal Bar Chart -->
                                 <lvc:CartesianChart Series="{Binding ShapChartSeries}"
                                                     XAxes="{Binding ShapXAxes}"
                                                     YAxes="{Binding ShapYAxes}"
@@ -527,15 +480,12 @@
                             </VerticalStackLayout>
                         </Border>
 
-                        <!-- Right Column: Candidate Models Comparison -->
                         <VerticalStackLayout Grid.Row="{OnIdiom Phone=1, Default=0}" Grid.Column="{OnIdiom Phone=0, Default=1}" Spacing="10">
-                            <!-- Models Cards List -->
                             <VerticalStackLayout Spacing="10" BindableLayout.ItemsSource="{Binding BenchmarkList}">
                                 <BindableLayout.ItemTemplate>
                                     <DataTemplate x:DataType="models:ModelBenchmarkItem">
                                         <Border BackgroundColor="{Binding CardBackground}" Stroke="{Binding CardStroke}" Padding="14,12" StrokeShape="RoundRectangle 10">
                                             <VerticalStackLayout Spacing="6">
-                                                <!-- Title & Status Badge -->
                                                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" VerticalOptions="Center">
                                                     <Label Text="{Binding ModelName}" FontSize="13" FontAttributes="Bold" TextColor="#F8FAFC" VerticalOptions="Center" />
                                                     <Border Grid.Column="1" BackgroundColor="{Binding StatusBadgeBg}" Stroke="Transparent" Padding="6,2" StrokeShape="RoundRectangle 4">
@@ -543,10 +493,8 @@
                                                     </Border>
                                                 </Grid>
 
-                                                <!-- Role description -->
                                                 <Label Text="{Binding Role}" FontSize="10" TextColor="#94A3B8" />
 
-                                                <!-- Key Metrics Strip -->
                                                 <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="6" Margin="0,2,0,0">
                                                     <Border BackgroundColor="#0B1220" Stroke="#1E293B" Padding="6,4" StrokeShape="RoundRectangle 6">
                                                         <VerticalStackLayout Spacing="1">
@@ -574,7 +522,6 @@
                                                     </Border>
                                                 </Grid>
 
-                                                <!-- Strengths & Takeaway -->
                                                 <Label Text="{Binding Strengths}" FontSize="9" TextColor="#CBD5E1" LineBreakMode="WordWrap" />
                                             </VerticalStackLayout>
                                         </Border>
@@ -582,7 +529,6 @@
                                 </BindableLayout.ItemTemplate>
                             </VerticalStackLayout>
 
-                            <!-- Production Decision Callout -->
                             <Border BackgroundColor="#0C2138" Stroke="#0284C7" Padding="12" StrokeShape="RoundRectangle 8">
                                 <VerticalStackLayout Spacing="4">
                                     <Label Text="Selected Model: Isolation Forest" FontSize="11" FontAttributes="Bold" TextColor="#38BDF8" />

@@ -31,12 +31,10 @@ public class ApiService : IApiService
 
     public static string GetDefaultBaseUrl()
     {
-        // 1. Check if user previously saved a custom URL in Preferences
         string saved = Preferences.Default.Get("AwsMonitor_ApiBaseUrl", string.Empty);
         if (!string.IsNullOrWhiteSpace(saved) && !saved.Contains("127.0.0.1") && !saved.Contains("10.232.250.170"))
             return saved;
 
-        // Live production cloud API deployed on Vercel
         return "https://aws-monitor-api.vercel.app";
     }
 
@@ -153,7 +151,6 @@ public class ApiService : IApiService
             IsConnected = false;
         }
 
-        // Return synthesized realistic meteorological telemetry series
         var pts = new List<TelemetryPoint>();
         var baseDate = DateTime.Now.AddDays(-10);
         var rand = new Random(42);
@@ -171,28 +168,6 @@ public class ApiService : IApiService
             double batt = 12.8 + (hour >= 7 && hour <= 18 ? 0.9 : -0.3);
             double rain = (i >= 200 && i <= 210) ? Math.Round(rand.NextDouble() * 8.5, 1) : 0.0;
 
-            bool isFault = false;
-            string severity = "NORMAL";
-            double score = 0.08;
-
-            // Injected spike demo at i=120
-            if (i == 120)
-            {
-                t4 = -33.4; // Glitch
-                isFault = true;
-                severity = "CRITICAL";
-                score = 0.98;
-            }
-            // Injected freeze demo at 260..265
-            else if (i >= 260 && i <= 265)
-            {
-                t2 = 31.42;
-                t4 = 31.10;
-                isFault = true;
-                severity = "WARNING";
-                score = 0.82;
-            }
-
             pts.Add(new TelemetryPoint
             {
                 Timestamp = dt.ToString("yyyy-MM-dd HH:mm"),
@@ -206,9 +181,9 @@ public class ApiService : IApiService
                 BatteryVoltage = Math.Round(batt, 2),
                 Rainfall = rain,
                 WindSpeed10m = Math.Round(1.5 + rand.NextDouble() * 3.0, 1),
-                IsAnomaly = isFault,
-                Severity = severity,
-                FusedScore = score
+                IsAnomaly = false,
+                Severity = "NORMAL",
+                FusedScore = 0.08
             });
         }
 
@@ -362,7 +337,6 @@ public class ApiService : IApiService
             IsConnected = false;
         }
 
-        // Local fallback inference simulation
         bool isSpike = Math.Abs(req.Temp4m - req.Temp2m) > 15.0 || req.Temp4m < -10.0;
         bool isBattery = req.BatteryVoltage < 10.5;
         bool isHeatwave = req.Temp2m > 44.0 && req.Temp4m > 43.0 && req.Temp8m > 42.0;
@@ -477,9 +451,9 @@ public class ApiService : IApiService
             PrimaryModel = "Isolation Forest",
             Models = new List<ModelBenchmarkItem>
             {
-                new() { ModelName = "Isolation Forest", Role = "Primary Global Detector", TrainingSamples = 22941, EvalSamples = 9833, FitTimeSeconds = 0.187, InferenceThroughputObsSec = 87650.0, ModelDiskSizeKb = 981.4, OutlierRatePct = 5.0, IsSelectedProductionModel = true },
-                new() { ModelName = "One-Class SVM", Role = "Kernel Boundary Detector", TrainingSamples = 22941, EvalSamples = 9833, FitTimeSeconds = 4.210, InferenceThroughputObsSec = 29953.0, ModelDiskSizeKb = 45.9, OutlierRatePct = 5.0, IsSelectedProductionModel = false },
-                new() { ModelName = "Local Outlier Factor", Role = "Density-Based Outlier Profiler", TrainingSamples = 22941, EvalSamples = 9833, FitTimeSeconds = 1.120, InferenceThroughputObsSec = 15917.0, ModelDiskSizeKb = 6920.0, OutlierRatePct = 5.0, IsSelectedProductionModel = false }
+                new() { ModelName = "Isolation Forest", Role = "Production Ensemble", TrainingSamples = 22941, EvalSamples = 9833, FitTimeSeconds = 0.35, InferenceThroughputObsSec = 188667.0, ModelDiskSizeKb = 1082.0, OutlierRatePct = 5.0, IsSelectedProductionModel = true },
+                new() { ModelName = "One-Class SVM", Role = "Margin Boundary Detector", TrainingSamples = 22941, EvalSamples = 9833, FitTimeSeconds = 1.45, InferenceThroughputObsSec = 58470.0, ModelDiskSizeKb = 22.4, OutlierRatePct = 5.0, IsSelectedProductionModel = false },
+                new() { ModelName = "Local Outlier Factor", Role = "Density Outlier Profiler", TrainingSamples = 22941, EvalSamples = 9833, FitTimeSeconds = 0.85, InferenceThroughputObsSec = 14278.0, ModelDiskSizeKb = 1467.3, OutlierRatePct = 5.0, IsSelectedProductionModel = false }
             }
         };
     }

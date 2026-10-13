@@ -5,12 +5,10 @@ from pydantic import BaseModel, Field
 class TelemetryPointInput(BaseModel):
     timestamp: Optional[str] = Field(None, description="ISO timestamp (YYYY-MM-DD HH:MM:SS)")
     
-    # Core SIH Parameters
     temperature: Optional[float] = Field(None, description="Air temperature (°C)")
     humidity: Optional[float] = Field(None, description="Relative humidity (%)")
     pressure: Optional[float] = Field(985.0, description="Atmospheric barometric pressure (hPa/mbar)")
     
-    # Backward compatibility aliases for multi-height clients
     temp_2m: Optional[float] = None
     temp_4m: Optional[float] = None
     temp_8m: Optional[float] = None
@@ -51,7 +49,6 @@ class TelemetryInferenceResponse(BaseModel):
     evidence_breakdown: Dict[str, Any]
     explanation: str
 
-    # Self-healing attributes
     corrected_temperature: Optional[float] = None
     corrected_humidity: Optional[float] = None
     corrected_pressure: Optional[float] = None
@@ -64,18 +61,9 @@ class TelemetryHistoryPoint(BaseModel):
     temperature: Optional[float] = None
     humidity: Optional[float] = None
     pressure: Optional[float] = None
-    temp_2m: Optional[float] = None
-    temp_4m: Optional[float] = None
-    temp_8m: Optional[float] = None
-    rh_2m: Optional[float] = None
-    rh_4m: Optional[float] = None
-    rh_8m: Optional[float] = None
-    battery_voltage: Optional[float] = None
-    wind_speed_10m: Optional[float] = None
-    rainfall: Optional[float] = None
-    fused_score: Optional[float] = None
-    is_anomaly: Optional[bool] = False
-    severity: Optional[str] = "NOMINAL"
+    fused_score: float = 0.05
+    is_anomaly: bool = False
+    severity: str = "NOMINAL"
 
 
 class TelemetryHistoryResponse(BaseModel):

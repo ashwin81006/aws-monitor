@@ -4,7 +4,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 
-# Ensure root directory is on Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 from src.api.routes import (
@@ -17,16 +16,12 @@ from src.api.routes import (
 
 app = FastAPI(
     title="AWS Monitor - Intelligent Anomaly Detection API",
-    description=(
-        "Production-grade REST API for Automatic Weather Station (AWS) telemetry quality control, "
-        "Isolation Forest anomaly detection, and thermodynamic self-healing."
-    ),
+    description="Production-grade REST API for Automatic Weather Station (AWS) telemetry quality control, Isolation Forest anomaly detection, and thermodynamic self-healing.",
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc"
 )
 
-# Enable CORS for .NET MAUI desktop app and web clients
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -35,7 +30,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount modular route handlers
 app.include_router(health.router)
 app.include_router(telemetry.router)
 app.include_router(anomalies.router)

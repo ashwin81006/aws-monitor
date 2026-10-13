@@ -50,9 +50,6 @@ public partial class MainViewModel : ObservableObject
     public Color HealthTabBg => Color.FromArgb("#1E293B");
     public Color ModelsTabBg => IsModelsTab ? Color.FromArgb("#0284C7") : Color.FromArgb("#1E293B");
 
-    // ---------------------------------------------------------
-    // Station & Connection Info
-    // ---------------------------------------------------------
     [ObservableProperty]
     public partial string StationId { get; set; } = "ISRO0119_15F077";
 
@@ -80,9 +77,6 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     public partial bool IsLoading { get; set; }
 
-    // ---------------------------------------------------------
-    // Key Summary Metrics (Simple English)
-    // ---------------------------------------------------------
     [ObservableProperty]
     public partial double HealthScore { get; set; } = 98.8;
 
@@ -140,9 +134,6 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     public partial Axis[] ChartYAxes { get; set; } = Array.Empty<Axis>();
 
-    // ---------------------------------------------------------
-    // Dynamic Telemetry Legend & Stat Pills
-    // ---------------------------------------------------------
     [ObservableProperty]
     public partial string TelemetryLegend1Title { get; set; } = "Air Temperature";
 
@@ -179,9 +170,6 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     public partial Color TelemetryLegend4Color { get; set; } = Color.FromArgb("#10B981");
 
-    // ---------------------------------------------------------
-    // What Matters Most (TreeSHAP Feature Importance) Chart
-    // ---------------------------------------------------------
     [ObservableProperty]
     public partial ISeries[] ShapChartSeries { get; set; } = Array.Empty<ISeries>();
 
@@ -194,9 +182,6 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     public partial string ShapPrimaryInsight { get; set; } = "Temperature rate of change (temp_rate) is the top driver: sudden spikes exceeding 10°C/hr isolate hardware glitches from natural heating.";
 
-    // ---------------------------------------------------------
-    // Interactive Testing & Simulator Inputs
-    // ---------------------------------------------------------
     [ObservableProperty]
     public partial double TestTemperature { get; set; } = 31.4;
 
@@ -224,7 +209,6 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     public partial double TestWindSpeed { get; set; } = 2.4;
 
-    // Test Results & Thermodynamic Self-Healing
     [ObservableProperty]
     public partial bool HasTestResult { get; set; } = true;
 
@@ -232,7 +216,7 @@ public partial class MainViewModel : ObservableObject
     public partial string ResultStatusBadge { get; set; } = "ALL CLEAR";
 
     [ObservableProperty]
-    public partial Color ResultBadgeColor { get; set; } = Color.FromArgb("#10B981"); // Emerald
+    public partial Color ResultBadgeColor { get; set; } = Color.FromArgb("#10B981");
 
     [ObservableProperty]
     public partial string ResultConfidenceText { get; set; } = "95% Confident";
@@ -273,9 +257,6 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     public partial string ReconstructionDetailsText { get; set; } = "No reconstruction required. Values are physically valid.";
 
-    // ---------------------------------------------------------
-    // Data Collections
-    // ---------------------------------------------------------
     public ObservableCollection<AnomalyEvent> EventsList { get; } = new();
     public ObservableCollection<SensorChannelHealth> SensorsList { get; } = new();
     public ObservableCollection<ModelBenchmarkItem> BenchmarkList { get; } = new();
@@ -387,9 +368,9 @@ public partial class MainViewModel : ObservableObject
 
         if (BenchmarkList.Count == 0)
         {
-            BenchmarkList.Add(new ModelBenchmarkItem { ModelName = "Isolation Forest", Role = "Primary Global Detector", InferenceThroughputObsSec = 87650, ModelDiskSizeKb = 981, IsSelectedProductionModel = true });
-            BenchmarkList.Add(new ModelBenchmarkItem { ModelName = "One-Class SVM", Role = "Kernel Boundary Detector", InferenceThroughputObsSec = 29953, ModelDiskSizeKb = 46, IsSelectedProductionModel = false });
-            BenchmarkList.Add(new ModelBenchmarkItem { ModelName = "Local Outlier Factor", Role = "Density-Based Profiler", InferenceThroughputObsSec = 15917, ModelDiskSizeKb = 6920, IsSelectedProductionModel = false });
+            BenchmarkList.Add(new ModelBenchmarkItem { ModelName = "Isolation Forest", Role = "Production Ensemble", InferenceThroughputObsSec = 188667, ModelDiskSizeKb = 1082, IsSelectedProductionModel = true });
+            BenchmarkList.Add(new ModelBenchmarkItem { ModelName = "One-Class SVM", Role = "Margin Boundary Detector", InferenceThroughputObsSec = 58470, ModelDiskSizeKb = 22.4, IsSelectedProductionModel = false });
+            BenchmarkList.Add(new ModelBenchmarkItem { ModelName = "Local Outlier Factor", Role = "Density Outlier Profiler", InferenceThroughputObsSec = 14278, ModelDiskSizeKb = 1467.3, IsSelectedProductionModel = false });
         }
     }
 
@@ -411,9 +392,6 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
-    // ---------------------------------------------------------
-    // Tab Navigation
-    // ---------------------------------------------------------
     [RelayCommand]
     public void SwitchTab(string tabName)
     {
@@ -443,9 +421,6 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
-    // ---------------------------------------------------------
-    // Setup Chart Axes with Crisp Colors
-    // ---------------------------------------------------------
     private void SetupChartAxes()
     {
         ChartXAxes = new Axis[]
@@ -453,8 +428,8 @@ public partial class MainViewModel : ObservableObject
             new Axis
             {
                 Name = "Timeline (Sequential 30-min Observations)",
-                NamePaint = new SolidColorPaint(new SKColor(148, 163, 184)), // Slate-400
-                LabelsPaint = new SolidColorPaint(new SKColor(148, 163, 184)), // Slate-400
+                NamePaint = new SolidColorPaint(new SKColor(148, 163, 184)),
+                LabelsPaint = new SolidColorPaint(new SKColor(148, 163, 184)),
                 TextSize = 11,
                 SeparatorsPaint = new SolidColorPaint(new SKColor(51, 65, 85, 80))
             }
@@ -465,7 +440,7 @@ public partial class MainViewModel : ObservableObject
             new Axis
             {
                 Name = "Temperature (°C)",
-                NamePaint = new SolidColorPaint(new SKColor(56, 189, 248)), // Sky-400
+                NamePaint = new SolidColorPaint(new SKColor(56, 189, 248)),
                 LabelsPaint = new SolidColorPaint(new SKColor(148, 163, 184)),
                 TextSize = 11,
                 SeparatorsPaint = new SolidColorPaint(new SKColor(51, 65, 85, 80))
@@ -473,9 +448,6 @@ public partial class MainViewModel : ObservableObject
         };
     }
 
-    // ---------------------------------------------------------
-    // Data Loaders
-    // ---------------------------------------------------------
     private async Task CheckConnectionAsync()
     {
         var health = await _api.CheckHealthAsync();
@@ -483,12 +455,12 @@ public partial class MainViewModel : ObservableObject
         if (IsConnected)
         {
             ConnectionStatusText = "● Live Online";
-            ConnectionStatusColor = Color.FromArgb("#10B981"); // Emerald
+            ConnectionStatusColor = Color.FromArgb("#10B981");
         }
         else
         {
             ConnectionStatusText = "● Offline Mode";
-            ConnectionStatusColor = Color.FromArgb("#F59E0B"); // Amber
+            ConnectionStatusColor = Color.FromArgb("#F59E0B");
         }
     }
 
@@ -552,9 +524,6 @@ public partial class MainViewModel : ObservableObject
         });
     }
 
-    // ---------------------------------------------------------
-    // Channel Selector for Telemetry Chart
-    // ---------------------------------------------------------
     [RelayCommand]
     public void SelectChannel(string channel)
     {
@@ -748,9 +717,6 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
-    // ---------------------------------------------------------
-    // Historical Event Presets & Incident Demonstration
-    // ---------------------------------------------------------
     [RelayCommand]
     public void ResetToHistoricalStream()
     {
@@ -908,9 +874,6 @@ public partial class MainViewModel : ObservableObject
         };
     }
 
-    // ---------------------------------------------------------
-    // Anomaly Incident Log
-    // ---------------------------------------------------------
     private async Task LoadEventsAsync()
     {
         var res = await _api.GetAnomalyEventsAsync();
@@ -929,9 +892,6 @@ public partial class MainViewModel : ObservableObject
         });
     }
 
-    // ---------------------------------------------------------
-    // Sensor Health & Accuracy
-    // ---------------------------------------------------------
     private async Task LoadSensorHealthAsync()
     {
         var health = await _api.GetSensorHealthAsync();
@@ -949,9 +909,6 @@ public partial class MainViewModel : ObservableObject
         });
     }
 
-    // ---------------------------------------------------------
-    // Model Diagnostics & What Matters (SHAP)
-    // ---------------------------------------------------------
     private async Task LoadModelDiagnosticsAsync()
     {
         var bench = await _api.GetModelBenchmarksAsync();
@@ -1055,10 +1012,6 @@ public partial class MainViewModel : ObservableObject
         });
     }
 
-    // ---------------------------------------------------------
-    // Interactive Tester Pr    // ---------------------------------------------------------
-    // Interactive Tester Presets & Evaluation
-    // ---------------------------------------------------------
     [RelayCommand]
     public void LoadPresetNormal()
     {
@@ -1077,7 +1030,7 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     public void LoadPresetSpike()
     {
-        TestTemperature = -33.4; // Glitched sensor spike
+        TestTemperature = -33.4;
         TestTemp2m = 31.2;
         TestTemp4m = -33.4;
         TestTemp8m = 30.7;
@@ -1092,7 +1045,7 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     public void LoadPresetFreeze()
     {
-        TestTemperature = 28.5; // Stuck sensor reading
+        TestTemperature = 28.5;
         TestTemp2m = 28.5;
         TestTemp4m = 28.5;
         TestTemp8m = 28.5;
@@ -1107,7 +1060,7 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     public void LoadPresetHeatwave()
     {
-        TestTemperature = 46.5; // Natural tropical heatwave
+        TestTemperature = 46.5;
         TestTemp2m = 46.5;
         TestTemp4m = 46.2;
         TestTemp8m = 45.9;
@@ -1127,7 +1080,7 @@ public partial class MainViewModel : ObservableObject
         TestTemp4m = 24.3;
         TestTemp8m = 24.0;
         TestHumidity = 96.0;
-        TestPressure = 968.0; // Barometric depression
+        TestPressure = 968.0;
         TestBattery = 12.2;
         TestRainfall = 34.5;
         TestWindSpeed = 14.8;
@@ -1170,7 +1123,6 @@ public partial class MainViewModel : ObservableObject
                         : "None (Nominal)";
                     ResultExplanationSimple = res.Explanation;
 
-                    // Thermodynamic Self-Healing Binding
                     IsHealedResult = res.IsHealed;
                     HealedTemperature = res.CorrectedTemperature;
                     HealedHumidity = res.CorrectedHumidity;
@@ -1191,25 +1143,25 @@ public partial class MainViewModel : ObservableObject
                     if (res.Classification == "PROBABLE_SENSOR_FAULT" || res.Severity == "CRITICAL" || res.RootCause.Contains("SENSOR") || res.RootCause.Contains("SPIKE") || res.RootCause.Contains("SENTINEL"))
                     {
                         ResultStatusBadge = "HARDWARE FAULT";
-                        ResultBadgeColor = Color.FromArgb("#EF4444"); // Red
+                        ResultBadgeColor = Color.FromArgb("#EF4444");
                         ResultFaultTypeSimple = res.RootCause.Replace("_", " ");
                     }
                     else if (res.Classification == "BENIGN_EXTREME" || res.RootCause.Contains("EXTREME"))
                     {
                         ResultStatusBadge = "WEATHER EXTREME";
-                        ResultBadgeColor = Color.FromArgb("#3B82F6"); // Blue
+                        ResultBadgeColor = Color.FromArgb("#3B82F6");
                         ResultFaultTypeSimple = "Natural Weather Extreme (Consensus Verified)";
                     }
                     else if (res.Severity == "WARNING" || res.Classification == "UNCERTAIN_WARNING" || res.Severity == "HIGH")
                     {
                         ResultStatusBadge = "WARNING";
-                        ResultBadgeColor = Color.FromArgb("#F59E0B"); // Amber
+                        ResultBadgeColor = Color.FromArgb("#F59E0B");
                         ResultFaultTypeSimple = res.RootCause.Replace("_", " ");
                     }
                     else
                     {
                         ResultStatusBadge = "ALL CLEAR";
-                        ResultBadgeColor = Color.FromArgb("#10B981"); // Emerald
+                        ResultBadgeColor = Color.FromArgb("#10B981");
                         ResultFaultTypeSimple = "Normal Operation";
                     }
                     HasTestResult = true;
@@ -1219,7 +1171,6 @@ public partial class MainViewModel : ObservableObject
         }
         catch
         {
-            // fallback to local calculation
         }
         finally
         {

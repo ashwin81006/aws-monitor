@@ -1,8 +1,3 @@
-"""
-Anomaly Service for Diagnosed Incident Events.
-Manages incident events in-memory directly from detected telemetry anomalies.
-"""
-
 from typing import Optional, List, Dict, Any
 import numpy as np
 import pandas as pd

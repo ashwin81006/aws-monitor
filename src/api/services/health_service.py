@@ -1,8 +1,3 @@
-"""
-Health Service for Station & Sensor Hardware Monitoring.
-Dynamically calculates channel reliability and uptime in-memory.
-"""
-
 from typing import List, Dict, Any, Optional
 import pandas as pd
 
@@ -14,9 +9,6 @@ MONITORED_CHANNELS = [
     {"id": "temperature", "name": "Air Temperature", "unit": "°C"},
     {"id": "humidity", "name": "Relative Humidity", "unit": "%"},
     {"id": "pressure", "name": "Atmospheric Pressure", "unit": "hPa"},
-    {"id": "battery_voltage", "name": "Battery Voltage", "unit": "V"},
-    {"id": "wind_speed", "name": "Wind Speed", "unit": "m/s"},
-    {"id": "rainfall", "name": "Rainfall", "unit": "mm"},
 ]
 
 
@@ -40,7 +32,8 @@ class HealthService:
             clean_count = max(0, total_n - hardware_faults)
             overall_rel = round((clean_count / total_n) * 100.0, 1)
 
-            # Channel Health Items
+            extremes_count = int(((clean["temperature"] > 42.0) | (clean["humidity"] < 20.0)).sum())
+
             items: List[SensorHealthItem] = []
             for ch in MONITORED_CHANNELS:
                 ch_id = ch["id"]
@@ -60,7 +53,7 @@ class HealthService:
                     display_name=ch["name"],
                     unit=ch["unit"],
                     current_health=rel_pct,
-                    historical_min_health=round(rel_pct - 2.5, 1),
+                    historical_min_health=rel_pct,
                     total_faults=bad_count,
                     total_warnings=comm_gaps if ch_id == "temperature" else 0,
                     clean_steps=total_n - bad_count,
@@ -69,7 +62,6 @@ class HealthService:
                     status="HEALTHY" if rel_pct >= 95.0 else ("DEGRADED" if rel_pct >= 85.0 else "CRITICAL")
                 ))
 
-            # Station Summary Response
             summary = StationSummaryResponse(
                 station_id=STATION_METADATA["station_id"],
                 station_name=STATION_METADATA["station_name"],
@@ -84,7 +76,7 @@ class HealthService:
                 data_gaps_count=comm_gaps,
                 verified_normal_count=clean_count,
                 probable_faults_count=hardware_faults,
-                possible_extremes_count=120,
+                possible_extremes_count=extremes_count,
                 uncertain_warnings_count=comm_gaps,
                 overall_reliability_pct=overall_rel,
                 station_status="HEALTHY_ONLINE"
@@ -109,17 +101,20 @@ class HealthService:
                 station_id=STATION_METADATA["station_id"],
                 station_name=STATION_METADATA["station_name"],
                 location=f"{STATION_METADATA['state']}, {STATION_METADATA['country']}",
-                coordinates={"latitude": 12.9692, "longitude": 79.1559},
-                total_observations=32774,
-                start_time="2006-07-11 16:30:00",
-                end_time="2015-12-09 23:30:00",
-                data_gaps_count=1052,
-                verified_normal_count=31837,
-                probable_faults_count=937,
-                possible_extremes_count=120,
-                uncertain_warnings_count=1052,
-                overall_reliability_pct=97.1,
-                station_status="HEALTHY_ONLINE"
+                coordinates={
+                    "latitude": STATION_METADATA["latitude"],
+                    "longitude": STATION_METADATA["longitude"]
+                },
+                total_observations=0,
+                start_time="",
+                end_time="",
+                data_gaps_count=0,
+                verified_normal_count=0,
+                probable_faults_count=0,
+                possible_extremes_count=0,
+                uncertain_warnings_count=0,
+                overall_reliability_pct=0.0,
+                station_status="UNAVAILABLE"
             )
         return self._cached_summary
 
@@ -129,8 +124,8 @@ class HealthService:
         if self._cached_health is None:
             return SensorHealthResponse(
                 station_id=STATION_METADATA["station_id"],
-                overall_station_health=97.1,
-                overall_station_grade="A",
+                overall_station_health=0.0,
+                overall_station_grade="N/A",
                 sensors=[]
             )
         return self._cached_health

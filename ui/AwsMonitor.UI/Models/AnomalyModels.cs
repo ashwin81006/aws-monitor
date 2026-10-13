@@ -16,7 +16,6 @@ public class StreamPointRequest
     [JsonPropertyName("pressure")]
     public double Pressure { get; set; } = 998.5;
 
-    // Backward-compatibility aliases
     [JsonPropertyName("temp_2m")]
     public double Temp2m { get => Temperature; set => Temperature = value; }
 

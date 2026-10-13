@@ -1,8 +1,3 @@
-"""
-Telemetry Service for AWS Historical Observations.
-Streams and downsamples time-series data for LiveCharts2 client rendering.
-"""
-
 import os
 from typing import Optional, List
 import pandas as pd
@@ -62,7 +57,6 @@ class TelemetryService:
                 series=[]
             )
 
-        # Smart stride downsampling while preserving all anomaly points
         factor = max(1, min(downsample_factor, 50))
         if factor > 1:
             indices = set(range(0, total_points, factor))

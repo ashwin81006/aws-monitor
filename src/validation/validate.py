@@ -1,11 +1,3 @@
-"""
-Validation Module for AWS Anomaly Detection.
-Injects realistic sensor faults (Spike, Frozen Sensor, Calibration Drift, Communication Failure)
-into clean test observations and evaluates Detection Precision, Recall, F1-Score, and Latency.
-
-Zero intermediate CSV writes - completely in-memory.
-"""
-
 import os
 import sys
 import pickle
@@ -14,7 +6,6 @@ from typing import Dict, List, Tuple, Any
 import numpy as np
 import pandas as pd
 
-# Suppress minor scikit-learn version warnings for cleaner terminal output
 warnings.filterwarnings("ignore", category=UserWarning)
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -30,13 +21,6 @@ def inject_faults(
     df: pd.DataFrame,
     random_seed: int = 42
 ) -> Tuple[pd.DataFrame, List[Dict[str, Any]]]:
-    """
-    Injects 4 realistic weather sensor failure modes into clean test data in-memory:
-      1. SPIKE: Sudden impossible jump (+15°C or +25 hPa)
-      2. FROZEN_SENSOR: Mechanically stuck float readings with zero variance
-      3. CALIBRATION_DRIFT: Gradual progressive offset (+0.5°C/hr)
-      4. COMMUNICATION_ERROR: Missing/NaN readings
-    """
     np.random.seed(random_seed)
     injected_df = df.copy()
     injected_df["ground_truth_fault"] = 0
@@ -45,7 +29,6 @@ def inject_faults(
     n_rows = len(injected_df)
     fault_events = []
 
-    # 1. Inject Spikes (Sudden 1-2 point jumps)
     spike_indices = np.random.choice(range(50, n_rows - 50), size=25, replace=False)
     for idx in spike_indices:
         channel = np.random.choice(["temperature", "pressure", "humidity"])
@@ -60,7 +43,6 @@ def inject_faults(
         injected_df.loc[idx, "fault_type"] = "SPIKE"
         fault_events.append({"type": "SPIKE", "start_idx": idx, "end_idx": idx, "channel": channel})
 
-    # 2. Inject Frozen Sensor (6 consecutive identical readings)
     frozen_starts = np.random.choice(range(100, n_rows - 100), size=15, replace=False)
     for start in frozen_starts:
         stuck_val = injected_df.loc[start, "temperature"]
@@ -70,7 +52,6 @@ def inject_faults(
             injected_df.loc[step, "fault_type"] = "FROZEN_SENSOR"
         fault_events.append({"type": "FROZEN_SENSOR", "start_idx": start, "end_idx": start + 5, "channel": "temperature"})
 
-    # 3. Inject Calibration Drift (Gradual slope over 10 points)
     drift_starts = np.random.choice(range(150, n_rows - 150), size=12, replace=False)
     for start in drift_starts:
         for i, step in enumerate(range(start, start + 10)):
@@ -79,7 +60,6 @@ def inject_faults(
             injected_df.loc[step, "fault_type"] = "CALIBRATION_DRIFT"
         fault_events.append({"type": "CALIBRATION_DRIFT", "start_idx": start, "end_idx": start + 9, "channel": "temperature"})
 
-    # 4. Inject Communication Loss (NaN values over 4 points)
     comm_starts = np.random.choice(range(200, n_rows - 200), size=15, replace=False)
     for start in comm_starts:
         for step in range(start, start + 4):
@@ -92,28 +72,19 @@ def inject_faults(
 
 
 def run_validation(test_sample_size: int = 4000) -> Dict[str, Any]:
-    """
-    Executes validation in-memory by injecting realistic faults into clean test data
-    and evaluating the unified detection system.
-    """
-    # 1. Load clean data
     raw_df = load_raw_dataset()
     _, clean_df = preprocess_data(raw_df)
 
-    # Use the test split sample
     split_idx = int(len(clean_df) * 0.70)
     test_clean = clean_df.iloc[split_idx: split_idx + test_sample_size].copy().reset_index(drop=True)
 
-    # 2. Inject realistic faults
     test_injected, fault_events = inject_faults(test_clean)
 
-    # 3. Load trained model & scaler
     with open(os.path.join(MODELS_DIR, "isolation_forest.pkl"), "rb") as f:
         model_if = pickle.load(f)
     with open(os.path.join(MODELS_DIR, "scaler.pkl"), "rb") as f:
         scaler = pickle.load(f)
 
-    # 4. Run detection stream
     extractor = StreamingFeatureExtractor(window_size=8)
     predictions = []
 
@@ -122,17 +93,14 @@ def run_validation(test_sample_size: int = 4000) -> Dict[str, Any]:
         rh = row["humidity"]
         p = row["pressure"]
 
-        # Rule checks
         is_missing = pd.isna(t) or pd.isna(rh) or pd.isna(p)
         is_extreme_spike = False
         is_frozen = False
 
         if not is_missing:
-            # Physical boundaries check
             if t > 52.0 or t < 5.0 or p < 890.0 or p > 1050.0:
                 is_extreme_spike = True
 
-            # Frozen variance check (repeated reading)
             if len(extractor.history) >= 4:
                 recent_temps = [pt[0] for pt in extractor.history]
                 if np.std(recent_temps) < 1e-3 and abs(t - recent_temps[-1]) < 1e-3:
@@ -150,7 +118,6 @@ def run_validation(test_sample_size: int = 4000) -> Dict[str, Any]:
 
     test_injected["predicted_alert"] = predictions
 
-    # 5. Calculate Metrics per fault type
     scenario_metrics = {}
     for f_type in ["SPIKE", "FROZEN_SENSOR", "CALIBRATION_DRIFT", "COMMUNICATION_ERROR"]:
         subset = test_injected[test_injected["fault_type"] == f_type]
@@ -158,7 +125,6 @@ def run_validation(test_sample_size: int = 4000) -> Dict[str, Any]:
         fn = int(((subset["ground_truth_fault"] == 1) & (subset["predicted_alert"] == 0)).sum())
         recall = round(tp / max(tp + fn, 1), 4)
 
-        # Measure event-level latency
         event_latencies = []
         for ev in fault_events:
             if ev["type"] == f_type:
@@ -175,7 +141,6 @@ def run_validation(test_sample_size: int = 4000) -> Dict[str, Any]:
             "mean_latency_steps": mean_latency
         }
 
-    # 6. Event-Level Evaluation (Bipartite fault window matching)
     matched_events = 0
     total_events = len(fault_events)
     for ev in fault_events:
@@ -185,7 +150,6 @@ def run_validation(test_sample_size: int = 4000) -> Dict[str, Any]:
 
     event_recall = round(matched_events / max(total_events, 1), 4)
 
-    # Count contiguous predicted alert episodes outside fault windows
     pred_series = test_injected["predicted_alert"]
     alert_starts = (pred_series == 1) & (pred_series.shift(1, fill_value=0) == 0)
     alert_indices = test_injected.index[alert_starts].tolist()
@@ -199,7 +163,6 @@ def run_validation(test_sample_size: int = 4000) -> Dict[str, Any]:
     event_precision = round(matched_events / max(matched_events + unmatched_alert_episodes, 1), 4)
     event_f1 = round(2 * event_precision * event_recall / max(event_precision + event_recall, 1e-4), 4)
 
-    # 7. Point-Level Classification Metrics
     y_true = test_injected["ground_truth_fault"].to_numpy()
     y_pred = test_injected["predicted_alert"].to_numpy()
 
@@ -232,26 +195,5 @@ def run_validation(test_sample_size: int = 4000) -> Dict[str, Any]:
 
 
 if __name__ == "__main__":
-    print("=" * 78)
-    print(" AWS ANOMALY DETECTION: FAULT INJECTION VALIDATION REPORT ")
-    print("=" * 78)
     res = run_validation()
-
-    print(f"{'Fault Scenario':<22} | {'Points':<8} | {'Detected':<9} | {'Recall':<8} | {'Avg Latency':<12}")
-    print("-" * 78)
-    for sc_name, sc_data in res["scenarios"].items():
-        print(f"{sc_name:<22} | {sc_data['injected_points']:<8} | {sc_data['detected_points']:<9} | {sc_data['recall']*100:.1f}%   | {sc_data['mean_latency_steps']} steps")
-    print("-" * 78)
-
-    print(f"\n1. Event-Level Performance (Matched Fault Windows vs Clean Operations):")
-    print(f"  • Injected Fault Incidents: {res['total_events']} events")
-    print(f"  • Successfully Detected:    {res['matched_events']} events ({res['event_recall']*100:.1f}% Event Recall)")
-    print(f"  • Event-Level Precision:    {res['event_precision']*100:.1f}% (Only {res['unmatched_alerts']} false alarm episodes outside faults)")
-    print(f"  • Event-Level F1-Score:     {res['event_f1']*100:.1f}%")
-
-    print(f"\n2. Point-by-Point Classification Metrics ({res['total_evaluated_points']:,} timestamps):")
-    print(f"  • Point Precision:          {res['precision']*100:.1f}%")
-    print(f"  • Point Recall:             {res['recall']*100:.1f}%")
-    print(f"  • Point F1-Score:           {res['f1_score']*100:.1f}%")
-    print("=" * 78)
-    print("Validation verified in-memory. Zero intermediate CSVs saved to disk.")
+    print(f"Validation: Precision={res['precision']:.3f}, Recall={res['recall']:.3f}, F1={res['f1_score']:.3f}")

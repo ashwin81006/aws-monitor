@@ -5,13 +5,11 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fil
 MODELS_DIR = os.path.join(BASE_DIR, "models")
 RAW_DATA_PATH = os.path.join(BASE_DIR, "data", "raw", "aws_dataset.csv")
 
-# Models & artifacts
 SCALER_PATH = os.path.join(MODELS_DIR, "scaler.pkl")
 IF_MODEL_PATH = os.path.join(MODELS_DIR, "isolation_forest.pkl")
 LOF_MODEL_PATH = os.path.join(MODELS_DIR, "lof.pkl")
 OCSVM_MODEL_PATH = os.path.join(MODELS_DIR, "one_class_svm.pkl")
 
-# Station details: ISRO Tamil Nadu Station
 STATION_METADATA = {
     "station_id": "ISRO0119_15F077",
     "station_name": "ISRO AWS Station, VIT Vellore",

@@ -1,8 +1,3 @@
-"""
-Inference Service for AWS Anomaly Detection.
-Wraps the unified detector, physical rules, and self-healing engine.
-"""
-
 import os
 from datetime import datetime
 from typing import Dict, Any

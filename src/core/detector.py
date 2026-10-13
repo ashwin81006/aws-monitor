@@ -1,9 +1,3 @@
-"""
-Unified Real-Time Anomaly Detector & Root-Cause Diagnoser for AWS.
-Integrates Physical Meteorological Checks, Machine Learning (Isolation Forest),
-and Self-Healing Data Imputation.
-"""
-
 import os
 import sys
 import pickle
@@ -21,10 +15,6 @@ MODELS_DIR = os.path.join(PROJECT_ROOT, "models")
 
 
 class AWSUnifiedDetector:
-    """
-    Real-time streaming detector combining Physical Rules, Isolation Forest,
-    and Self-Healing.
-    """
     def __init__(self):
         self.extractor = StreamingFeatureExtractor(window_size=8)
         self.model = None
@@ -48,11 +38,6 @@ class AWSUnifiedDetector:
         press: Optional[float],
         timestamp: Optional[pd.Timestamp] = None
     ) -> Dict[str, Any]:
-        """
-        Processes a single live weather observation.
-        Returns anomaly flag, severity, confidence, root cause, and self-healed values.
-        """
-        # 1. Check Missing / Communication Failure
         if temp is None or rh is None or press is None or np.isnan(temp) or np.isnan(rh) or np.isnan(press):
             healing = heal_observation(temp, rh, press, fault_type="COMMUNICATION_ERROR", culprit_sensor="all", history=list(self.extractor.history))
             return {
@@ -67,7 +52,6 @@ class AWSUnifiedDetector:
                 **healing
             }
 
-        # 2. Check ISRO Hardware Sentinels & Physical Impossible Limits
         if temp >= 90.0 or temp <= -40.0:
             healing = heal_observation(temp, rh, press, fault_type="SPIKE", culprit_sensor="Temperature", history=list(self.extractor.history))
             return {
@@ -82,7 +66,6 @@ class AWSUnifiedDetector:
                 **healing
             }
 
-        # 3. Check Mechanically Frozen Sensor (Zero variance over recent readings)
         is_frozen = False
         frozen_channel = "NONE"
         if len(self.extractor.history) >= 4:
@@ -105,10 +88,8 @@ class AWSUnifiedDetector:
                 **healing
             }
 
-        # 4. Extract Causal Features
         feats = self.extractor.push(temp=temp, rh=rh, press=press, timestamp=timestamp)
 
-        # 5. Check Rate-of-Change Sudden Spikes
         if abs(feats["temp_rate"]) > 6.0:
             healing = heal_observation(temp, rh, press, fault_type="SPIKE", culprit_sensor="Temperature", history=list(self.extractor.history))
             return {
@@ -137,8 +118,6 @@ class AWSUnifiedDetector:
                 **healing
             }
 
-        # 6. Physical Multivariate Consistency Check (Magnus Dew Point Limits)
-        # In real air, dew point depression cannot be negative, and T > 50°C with RH > 90% is physically impossible
         if feats["dew_point_depression"] < -0.5:
             healing = heal_observation(temp, rh, press, fault_type="PHYSICAL_INCONSISTENCY", culprit_sensor="Humidity", history=list(self.extractor.history))
             return {
@@ -153,8 +132,6 @@ class AWSUnifiedDetector:
                 **healing
             }
 
-        # 7. Check Genuine Extreme Weather vs Sensor Fault
-        # E.g. Monsoon Thunderstorm: Sudden pressure drop accompanied by rising RH and falling temp
         is_thunderstorm = (feats["pressure_rate"] < -3.0 and feats["humidity_rate"] > 15.0 and feats["temp_rate"] < -2.0)
         is_heatwave = (temp > 42.0 and rh < 35.0 and feats["dew_point_depression"] > 20.0)
 
@@ -196,7 +173,6 @@ class AWSUnifiedDetector:
                 "original_pressure": press
             }
 
-        # 8. Machine Learning Outlier Scoring (Isolation Forest)
         ml_score = 0.0
         ml_is_outlier = False
         if self.model and self.scaler:
@@ -204,7 +180,6 @@ class AWSUnifiedDetector:
             X_scaled = self.scaler.transform(X_df)
             decision = float(self.model.decision_function(X_scaled)[0])
             ml_is_outlier = bool(decision < -0.05)
-            # Calibrate score to 0.0 (nominal) - 1.0 (severe)
             ml_score = float(np.clip(1.0 / (1.0 + np.exp(decision * 10.0)), 0.02, 0.98))
 
         if ml_is_outlier:
@@ -221,7 +196,6 @@ class AWSUnifiedDetector:
                 **healing
             }
 
-        # Nominal Healthy State
         return {
             "is_anomaly": False,
             "anomaly_flag": 0,

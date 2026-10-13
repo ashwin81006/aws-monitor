@@ -1,12 +1,3 @@
-"""
-Testing & Model Comparison Module for AWS Anomaly Detection.
-Evaluates Isolation Forest, One-Class SVM, and Local Outlier Factor
-on the 30% held-out test split (9,833 unseen observations).
-
-Zero JSON files saved to disk - benchmarks are computed and returned in-memory
-for FastAPI to serve dynamically.
-"""
-
 import os
 import sys
 import time
@@ -25,20 +16,16 @@ MODELS_DIR = os.path.join(PROJECT_ROOT, "models")
 
 
 def evaluate_models_on_test_split() -> List[Dict[str, Any]]:
-    """
-    Evaluates the 3 saved models on the 30% test split.
-    Returns comparison metrics in-memory (no disk JSON).
-    """
-    # 1. Load data and extract test split
     raw_df = load_raw_dataset()
     _, clean_df = preprocess_data(raw_df)
     features_df = extract_features(clean_df)
     X = features_df[FEATURE_COLUMNS]
 
     split_idx = int(len(X) * 0.70)
+    X_train_count = split_idx
     X_test = X.iloc[split_idx:].copy()
+    X_test_count = len(X_test)
 
-    # 2. Load scaler and transform test data
     scaler_path = os.path.join(MODELS_DIR, "scaler.pkl")
     if not os.path.exists(scaler_path):
         raise FileNotFoundError("models/scaler.pkl not found. Run src/ml/train_models.py first.")
@@ -47,7 +34,6 @@ def evaluate_models_on_test_split() -> List[Dict[str, Any]]:
         scaler = pickle.load(f)
     X_test_scaled = scaler.transform(X_test)
 
-    # 3. Model configurations to test
     model_configs = [
         {
             "name": "Isolation Forest",
@@ -87,7 +73,6 @@ def evaluate_models_on_test_split() -> List[Dict[str, Any]]:
         with open(model_path, "rb") as f:
             model = pickle.load(f)
 
-        # Benchmark inference throughput over test split
         t0 = time.perf_counter()
         if hasattr(model, "predict"):
             preds = model.predict(X_test_scaled)
@@ -106,6 +91,9 @@ def evaluate_models_on_test_split() -> List[Dict[str, Any]]:
             "disk_size_kb": file_size_kb,
             "inference_throughput": f"{throughput_obs_sec:,} obs/s",
             "throughput_numeric": throughput_obs_sec,
+            "fit_time_seconds": round(elapsed_sec, 2),
+            "training_samples": X_train_count,
+            "eval_samples": X_test_count,
             "test_anomaly_rate": f"{anomaly_rate_pct}%",
             "treeshap_supported": cfg["treeshap"],
             "verdict": cfg["verdict"]
@@ -115,20 +103,6 @@ def evaluate_models_on_test_split() -> List[Dict[str, Any]]:
 
 
 if __name__ == "__main__":
-    print("=" * 80)
-    print(" AWS ANOMALY DETECTION: MODEL TESTING & BENCHMARK COMPARISON ")
-    print("=" * 80)
     benchmarks = evaluate_models_on_test_split()
-
-    header = f"{'Model Name':<26} | {'Role':<18} | {'Throughput':<15} | {'Disk Size':<10} | {'TreeSHAP':<8}"
-    print(header)
-    print("-" * 80)
     for b in benchmarks:
-        shap_str = "YES" if b["treeshap_supported"] else "NO"
-        print(f"{b['model_name']:<26} | {b['role']:<18} | {b['inference_throughput']:<15} | {str(b['disk_size_kb']) + ' KB':<10} | {shap_str:<8}")
-    print("-" * 80)
-    print("\nDetailed Findings:")
-    for b in benchmarks:
-        print(f"  • {b['model_name']}: {b['verdict']} (Anomaly flag rate: {b['test_anomaly_rate']})")
-    print("=" * 80)
-    print("Testing completed in-memory. Zero JSON files saved to disk.")
+        print(f"{b['model_name']} | {b['inference_throughput']} | {b['disk_size_kb']} KB")
