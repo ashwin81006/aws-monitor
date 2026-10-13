@@ -172,6 +172,14 @@ public class AnomalyEvent
         get => !string.IsNullOrEmpty(_description) ? _description : $"{Severity ?? "High"} severity condition flagged in {TargetSensor ?? "core sensors"} with {PeakFusedScore * 100:F0}% confidence.";
         set => _description = value;
     }
+
+    public Color SeverityColor => Severity == "CRITICAL"
+        ? Color.FromArgb("#EF4444")
+        : (Severity == "HIGH" ? Color.FromArgb("#F97316") : (Severity == "MODERATE" ? Color.FromArgb("#3B82F6") : Color.FromArgb("#F59E0B")));
+
+    public string PeakScoreText => $"{PeakFusedScore * 100:F0}% Anomaly Score";
+
+    public string ShortDescription => !string.IsNullOrEmpty(RootCause) ? RootCause : (!string.IsNullOrEmpty(Description) ? Description : "Sensor Anomaly");
 }
 
 public class AnomalyEventsResponse

@@ -33,6 +33,20 @@ public class SensorChannelHealth
 
     [JsonPropertyName("physical_max")]
     public double PhysicalMax { get; set; }
+
+    public string DisplayName => Channel switch
+    {
+        "temperature" => "Air Temperature",
+        "humidity" => "Relative Humidity",
+        "pressure" => "Barometric Pressure",
+        _ => Channel
+    };
+
+    public int CleanReadings => Math.Max(0, TotalReadings - FlaggedAnomalyCount);
+
+    public Color StatusBadgeColor => Status == "OPERATIONAL" ? Color.FromArgb("#10B981") : Color.FromArgb("#F59E0B");
+
+    public string QualityDescription => QualityScorePct >= 99.0 ? "High sensor precision verified" : "Requires sensor recalibration check";
 }
 
 public class StationHealthSummary

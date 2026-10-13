@@ -1,0 +1,7 @@
+ui/
+data/
+*.sln
+*.slnx
+.vscode/
+.agents/
+README.md

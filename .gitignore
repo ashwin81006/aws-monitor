@@ -12,7 +12,8 @@ env/
 
 # Data files
 *.csv
-data/raw/aws_dataset.csv
+data/
+data/**
 
 # Trained models
 models/*.joblib

@@ -16,27 +16,32 @@ public partial class MainViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsOverviewTab))]
+    [NotifyPropertyChangedFor(nameof(IsIncidentsTab))]
     [NotifyPropertyChangedFor(nameof(IsTelemetryTab))]
     [NotifyPropertyChangedFor(nameof(IsTesterTab))]
     [NotifyPropertyChangedFor(nameof(IsModelsTab))]
     [NotifyPropertyChangedFor(nameof(IsNotOverviewTab))]
+    [NotifyPropertyChangedFor(nameof(IsNotIncidentsTab))]
     [NotifyPropertyChangedFor(nameof(IsNotTelemetryTab))]
     [NotifyPropertyChangedFor(nameof(IsNotTesterTab))]
     [NotifyPropertyChangedFor(nameof(IsNotModelsTab))]
     [NotifyPropertyChangedFor(nameof(OverviewTabBg))]
+    [NotifyPropertyChangedFor(nameof(IncidentsTabBg))]
     [NotifyPropertyChangedFor(nameof(TelemetryTabBg))]
     [NotifyPropertyChangedFor(nameof(TesterTabBg))]
     [NotifyPropertyChangedFor(nameof(ModelsTabBg))]
     public partial string CurrentTab { get; set; } = "Overview";
 
     public bool IsOverviewTab => CurrentTab == "Overview";
-    public bool IsTelemetryTab => CurrentTab == "Telemetry";
+    public bool IsIncidentsTab => CurrentTab == "Incidents" || CurrentTab == "Telemetry";
+    public bool IsTelemetryTab => IsIncidentsTab;
     public bool IsTesterTab => CurrentTab == "Tester";
     public bool IsModelsTab => CurrentTab == "Models";
     public bool IsEventsTab => false;
     public bool IsHealthTab => false;
 
     public bool IsNotOverviewTab => !IsOverviewTab;
+    public bool IsNotIncidentsTab => !IsIncidentsTab;
     public bool IsNotTelemetryTab => !IsTelemetryTab;
     public bool IsNotTesterTab => !IsTesterTab;
     public bool IsNotModelsTab => !IsModelsTab;
@@ -44,7 +49,8 @@ public partial class MainViewModel : ObservableObject
     public bool IsNotHealthTab => true;
 
     public Color OverviewTabBg => IsOverviewTab ? Color.FromArgb("#0284C7") : Color.FromArgb("#1E293B");
-    public Color TelemetryTabBg => IsTelemetryTab ? Color.FromArgb("#0284C7") : Color.FromArgb("#1E293B");
+    public Color IncidentsTabBg => IsIncidentsTab ? Color.FromArgb("#0284C7") : Color.FromArgb("#1E293B");
+    public Color TelemetryTabBg => IncidentsTabBg;
     public Color TesterTabBg => IsTesterTab ? Color.FromArgb("#0284C7") : Color.FromArgb("#1E293B");
     public Color EventsTabBg => Color.FromArgb("#1E293B");
     public Color HealthTabBg => Color.FromArgb("#1E293B");
@@ -181,6 +187,24 @@ public partial class MainViewModel : ObservableObject
 
     [ObservableProperty]
     public partial string ShapPrimaryInsight { get; set; } = "Temperature rate of change (temp_rate) is the top driver: sudden spikes exceeding 10°C/hr isolate hardware glitches from natural heating.";
+
+    [ObservableProperty]
+    public partial ISeries[] BenchmarkChartSeries { get; set; } = Array.Empty<ISeries>();
+
+    [ObservableProperty]
+    public partial Axis[] BenchmarkXAxes { get; set; } = Array.Empty<Axis>();
+
+    [ObservableProperty]
+    public partial Axis[] BenchmarkYAxes { get; set; } = Array.Empty<Axis>();
+
+    [ObservableProperty]
+    public partial ISeries[] IncidentChartSeries { get; set; } = Array.Empty<ISeries>();
+
+    [ObservableProperty]
+    public partial Axis[] IncidentXAxes { get; set; } = Array.Empty<Axis>();
+
+    [ObservableProperty]
+    public partial Axis[] IncidentYAxes { get; set; } = Array.Empty<Axis>();
 
     [ObservableProperty]
     public partial double TestTemperature { get; set; } = 31.4;
@@ -444,6 +468,108 @@ public partial class MainViewModel : ObservableObject
                 LabelsPaint = new SolidColorPaint(new SKColor(148, 163, 184)),
                 TextSize = 11,
                 SeparatorsPaint = new SolidColorPaint(new SKColor(51, 65, 85, 80))
+            }
+        };
+
+        IncidentChartSeries = new ISeries[]
+        {
+            new RowSeries<double>
+            {
+                Name = "Events",
+                Values = new double[] { 9, 12, 15, 18, 42 },
+                Fill = new SolidColorPaint(new SKColor(245, 158, 11)),
+                MaxBarWidth = 14,
+                Rx = 4,
+                Ry = 4
+            }
+        };
+        IncidentYAxes = new Axis[]
+        {
+            new Axis
+            {
+                Labels = new string[] { "Calibration Drift", "Barometric Step", "Weather Extremes", "Stuck Readings", "ADC Spikes" },
+                LabelsPaint = new SolidColorPaint(new SKColor(226, 232, 240)),
+                TextSize = 10,
+                MinStep = 1,
+                ForceStepToMin = true,
+                SeparatorsPaint = new SolidColorPaint(new SKColor(51, 65, 85, 40))
+            }
+        };
+        IncidentXAxes = new Axis[]
+        {
+            new Axis
+            {
+                LabelsPaint = new SolidColorPaint(new SKColor(148, 163, 184)),
+                TextSize = 10,
+                SeparatorsPaint = new SolidColorPaint(new SKColor(51, 65, 85, 60))
+            }
+        };
+
+        BenchmarkChartSeries = new ISeries[]
+        {
+            new RowSeries<double>
+            {
+                Name = "Throughput (obs/sec)",
+                Values = new double[] { 14278.0, 58470.0, 188667.0 },
+                Fill = new SolidColorPaint(new SKColor(16, 185, 129)),
+                MaxBarWidth = 14,
+                Rx = 4,
+                Ry = 4
+            }
+        };
+        BenchmarkYAxes = new Axis[]
+        {
+            new Axis
+            {
+                Labels = new string[] { "LOF (Density)", "SVM (Margin)", "Isolation Forest (Prod)" },
+                LabelsPaint = new SolidColorPaint(new SKColor(226, 232, 240)),
+                TextSize = 10,
+                MinStep = 1,
+                ForceStepToMin = true,
+                SeparatorsPaint = new SolidColorPaint(new SKColor(51, 65, 85, 40))
+            }
+        };
+        BenchmarkXAxes = new Axis[]
+        {
+            new Axis
+            {
+                LabelsPaint = new SolidColorPaint(new SKColor(148, 163, 184)),
+                TextSize = 10,
+                SeparatorsPaint = new SolidColorPaint(new SKColor(51, 65, 85, 60))
+            }
+        };
+
+        ShapChartSeries = new ISeries[]
+        {
+            new RowSeries<double>
+            {
+                Name = "Importance",
+                Values = new double[] { 0.038, 0.046, 0.052, 0.061, 0.079, 0.088, 0.114, 0.162, 0.178, 0.182 },
+                Fill = new SolidColorPaint(new SKColor(56, 189, 248)),
+                MaxBarWidth = 14,
+                Rx = 4,
+                Ry = 4
+            }
+        };
+        ShapYAxes = new Axis[]
+        {
+            new Axis
+            {
+                Labels = new string[] { "dP/dt Rate", "Diurnal RH Dev", "Dew Point", "Air Temp", "Barometric Press", "dRH/dt Rate", "Diurnal Temp Dev", "Pressure Dev", "T - Td Deficit", "dT/dt Rate" },
+                LabelsPaint = new SolidColorPaint(new SKColor(226, 232, 240)),
+                TextSize = 10,
+                MinStep = 1,
+                ForceStepToMin = true,
+                SeparatorsPaint = new SolidColorPaint(new SKColor(51, 65, 85, 40))
+            }
+        };
+        ShapXAxes = new Axis[]
+        {
+            new Axis
+            {
+                LabelsPaint = new SolidColorPaint(new SKColor(148, 163, 184)),
+                TextSize = 10,
+                SeparatorsPaint = new SolidColorPaint(new SKColor(51, 65, 85, 60))
             }
         };
     }
@@ -889,6 +1015,40 @@ public partial class MainViewModel : ObservableObject
             {
                 SelectedEvent = EventsList[0];
             }
+
+            IncidentChartSeries = new ISeries[]
+            {
+                new RowSeries<double>
+                {
+                    Name = "Events",
+                    Values = new double[] { 9, 12, 15, 18, 42 },
+                    Fill = new SolidColorPaint(new SKColor(245, 158, 11)),
+                    MaxBarWidth = 14,
+                    Rx = 4,
+                    Ry = 4
+                }
+            };
+            IncidentYAxes = new Axis[]
+            {
+                new Axis
+                {
+                    Labels = new string[] { "Calibration Drift", "Barometric Step", "Weather Extremes", "Stuck Readings", "ADC Spikes" },
+                    LabelsPaint = new SolidColorPaint(new SKColor(226, 232, 240)),
+                    TextSize = 10,
+                    MinStep = 1,
+                    ForceStepToMin = true,
+                    SeparatorsPaint = new SolidColorPaint(new SKColor(51, 65, 85, 40))
+                }
+            };
+            IncidentXAxes = new Axis[]
+            {
+                new Axis
+                {
+                    LabelsPaint = new SolidColorPaint(new SKColor(148, 163, 184)),
+                    TextSize = 10,
+                    SeparatorsPaint = new SolidColorPaint(new SKColor(51, 65, 85, 60))
+                }
+            };
         });
     }
 
@@ -1009,6 +1169,40 @@ public partial class MainViewModel : ObservableObject
                     Verdict = !string.IsNullOrEmpty(m.Verdict) ? m.Verdict : (isProd ? "Selected for Production" : "Baseline comparison")
                 });
             }
+
+            BenchmarkChartSeries = new ISeries[]
+            {
+                new RowSeries<double>
+                {
+                    Name = "Throughput (obs/sec)",
+                    Values = new double[] { 14278.0, 58470.0, 188667.0 },
+                    Fill = new SolidColorPaint(new SKColor(16, 185, 129)),
+                    MaxBarWidth = 14,
+                    Rx = 4,
+                    Ry = 4
+                }
+            };
+            BenchmarkYAxes = new Axis[]
+            {
+                new Axis
+                {
+                    Labels = new string[] { "LOF (Density)", "SVM (Margin)", "Isolation Forest (Prod)" },
+                    LabelsPaint = new SolidColorPaint(new SKColor(226, 232, 240)),
+                    TextSize = 10,
+                    MinStep = 1,
+                    ForceStepToMin = true,
+                    SeparatorsPaint = new SolidColorPaint(new SKColor(51, 65, 85, 40))
+                }
+            };
+            BenchmarkXAxes = new Axis[]
+            {
+                new Axis
+                {
+                    LabelsPaint = new SolidColorPaint(new SKColor(148, 163, 184)),
+                    TextSize = 10,
+                    SeparatorsPaint = new SolidColorPaint(new SKColor(51, 65, 85, 60))
+                }
+            };
         });
     }
 

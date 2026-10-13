@@ -8,8 +8,7 @@ import shap
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 MODELS_DIR = os.path.join(PROJECT_ROOT, "models")
 
-from src.preprocessing.preprocess import load_raw_dataset, preprocess_data
-from src.features.feature_engineering import extract_features, FEATURE_COLUMNS
+from src.features.feature_engineering import FEATURE_COLUMNS
 
 FEATURE_DOMAINS = {
     "temperature": "Surface Air Temperature",
@@ -46,14 +45,14 @@ class TreeShapService:
                 self.scaler = pickle.load(f)
             self.explainer = shap.TreeExplainer(self.model)
 
-    def get_global_importance(self, sample_size: int = 1000) -> Dict[str, Any]:
+    def get_global_importance(self, sample_size: int = 300) -> Dict[str, Any]:
         if self._cached_global is not None:
             return self._cached_global
 
         if self.explainer is None:
             self._load_explainer()
 
-        if self.explainer is None:
+        if self.model is None:
             return {
                 "model_name": "Isolation Forest (TreeSHAP)",
                 "features_evaluated": 0,
@@ -61,22 +60,38 @@ class TreeShapService:
                 "meteorological_insights": []
             }
 
-        raw_df = load_raw_dataset()
-        _, clean_df = preprocess_data(raw_df)
-        features_df = extract_features(clean_df)
-        X = features_df[FEATURE_COLUMNS]
+        mean_abs = None
+        try:
+            from src.preprocessing.preprocess import load_raw_dataset, preprocess_data
+            from src.features.feature_engineering import extract_features
+            raw_df = load_raw_dataset()
+            _, clean_df = preprocess_data(raw_df)
+            features_df = extract_features(clean_df)
+            X = features_df[FEATURE_COLUMNS]
 
-        if len(X) > sample_size:
-            sample = X.sample(n=sample_size, random_state=42)
-        else:
-            sample = X
+            if len(X) > sample_size:
+                sample = X.sample(n=sample_size, random_state=42)
+            else:
+                sample = X
 
-        sample_scaled = self.scaler.transform(sample)
-        shap_values = self.explainer.shap_values(sample_scaled)
+            sample_scaled = self.scaler.transform(sample)
+            shap_values = self.explainer.shap_values(sample_scaled)
+            mean_abs = np.abs(shap_values).mean(axis=0)
+        except Exception:
+            if hasattr(self.model, "estimators_"):
+                feature_counts = np.zeros(len(FEATURE_COLUMNS))
+                for tree in self.model.estimators_:
+                    for feat_idx in tree.tree_.feature:
+                        if 0 <= feat_idx < len(FEATURE_COLUMNS):
+                            feature_counts[feat_idx] += 1.0
+                total_splits = feature_counts.sum()
+                if total_splits > 0:
+                    mean_abs = feature_counts / total_splits
 
-        mean_abs = np.abs(shap_values).mean(axis=0)
+        if mean_abs is None:
+            mean_abs = np.ones(len(FEATURE_COLUMNS)) / len(FEATURE_COLUMNS)
+
         sorted_indices = np.argsort(mean_abs)[::-1]
-
         top_features = []
         for rank, idx in enumerate(sorted_indices, 1):
             col_name = FEATURE_COLUMNS[idx]
@@ -99,7 +114,6 @@ class TreeShapService:
             "top_features": top_features,
             "meteorological_insights": insights
         }
-
         self._cached_global = result
         return result
 

@@ -67,19 +67,19 @@
                         TextColor="White" />
 
                 <Button Grid.Row="{OnIdiom Phone=0, Default=0}" Grid.Column="{OnIdiom Phone=1, Default=1}"
-                        Text="Telemetry"
+                        Text="Incidents &amp; Health"
                         Command="{Binding SwitchTabCommand}"
-                        CommandParameter="Telemetry"
+                        CommandParameter="Incidents"
                         FontSize="{OnIdiom Phone=12, Default=11}"
                         FontAttributes="Bold"
                         CornerRadius="6"
                         HeightRequest="{OnIdiom Phone=40, Default=34}"
                         Padding="6,0"
-                        BackgroundColor="{Binding TelemetryTabBg}"
+                        BackgroundColor="{Binding IncidentsTabBg}"
                         TextColor="White" />
 
                 <Button Grid.Row="{OnIdiom Phone=1, Default=0}" Grid.Column="{OnIdiom Phone=0, Default=2}"
-                        Text="Fault Diagnostics"
+                        Text="Sensor Simulator"
                         Command="{Binding SwitchTabCommand}"
                         CommandParameter="Tester"
                         FontSize="{OnIdiom Phone=12, Default=11}"
@@ -91,7 +91,7 @@
                         TextColor="White" />
 
                 <Button Grid.Row="{OnIdiom Phone=1, Default=0}" Grid.Column="{OnIdiom Phone=1, Default=3}"
-                        Text="Model Evaluation"
+                        Text="AI Models &amp; SHAP"
                         Command="{Binding SwitchTabCommand}"
                         CommandParameter="Models"
                         FontSize="{OnIdiom Phone=12, Default=11}"
@@ -162,9 +162,9 @@
                                    FontSize="11" TextColor="#CBD5E1" LineBreakMode="WordWrap" />
 
                             <HorizontalStackLayout Spacing="10" Margin="0,4,0,0">
-                                <Button Text="View Telemetry"
+                                <Button Text="Incidents &amp; Health"
                                         Command="{Binding SwitchTabCommand}"
-                                        CommandParameter="Telemetry"
+                                        CommandParameter="Incidents"
                                         BackgroundColor="#0284C7" TextColor="White"
                                         FontSize="{OnIdiom Phone=13, Default=11}"
                                         HeightRequest="{OnIdiom Phone=42, Default=34}"
@@ -183,117 +183,138 @@
                 </VerticalStackLayout>
             </ScrollView>
 
-            <Grid IsVisible="{Binding IsTelemetryTab}" InputTransparent="{Binding IsNotTelemetryTab}" RowDefinitions="Auto,*,Auto" RowSpacing="10">
+            <ScrollView IsVisible="{Binding IsIncidentsTab}" InputTransparent="{Binding IsNotIncidentsTab}">
+                <VerticalStackLayout Spacing="14">
 
-                <Border Grid.Row="0"
-                        BackgroundColor="#131B2E"
-                        Stroke="#1E293B"
-                        Padding="12,10"
-                        StrokeShape="RoundRectangle 10">
-                    <Grid ColumnDefinitions="{OnIdiom Phone='*', Default='Auto,*'}" RowDefinitions="{OnIdiom Phone='Auto,Auto', Default='*'}" RowSpacing="8">
-                        <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
-                            <HorizontalStackLayout Spacing="6" VerticalOptions="Center">
-                                <Label Text="Channel:" FontSize="11" FontAttributes="Bold" TextColor="#64748B" VerticalOptions="Center" Margin="0,0,4,0" />
+                    <Border BackgroundColor="#131B2E" Stroke="#1E293B" Padding="14,12" StrokeShape="RoundRectangle 10">
+                        <Grid ColumnDefinitions="*,Auto" VerticalOptions="Center">
+                            <VerticalStackLayout Spacing="2">
+                                <Label Text="Tower Sensor Health &amp; Physical Calibration" FontSize="13" FontAttributes="Bold" TextColor="#38BDF8" />
+                                <Label Text="Live operational integrity across atmospheric sensing instruments:" FontSize="10" TextColor="#94A3B8" />
+                            </VerticalStackLayout>
+                            <Border Grid.Column="1" BackgroundColor="#064E3B" Stroke="Transparent" Padding="8,3" StrokeShape="RoundRectangle 6" VerticalOptions="Center">
+                                <Label Text="{Binding OverallStatusText}" FontSize="10" FontAttributes="Bold" TextColor="#34D399" />
+                            </Border>
+                        </Grid>
+                    </Border>
 
-                                <Button Text="Temperature"
-                                         Command="{Binding SelectChannelCommand}"
-                                         CommandParameter="Temperature"
-                                         BackgroundColor="{Binding TempBtnBg}"
-                                         TextColor="White"
-                                         FontSize="{OnIdiom Phone=11, Default=10}" FontAttributes="Bold" HeightRequest="{OnIdiom Phone=36, Default=30}" CornerRadius="6" Padding="12,0" />
+                    <Grid ColumnDefinitions="{OnIdiom Phone='*', Default='*,*,*'}"
+                          RowDefinitions="{OnIdiom Phone='Auto,Auto,Auto', Default='Auto'}"
+                          ColumnSpacing="10" RowSpacing="10"
+                          BindableLayout.ItemsSource="{Binding SensorsList}">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate x:DataType="models:SensorChannelHealth">
+                                <Border BackgroundColor="#131B2E" Stroke="#1E293B" Padding="14,12" StrokeShape="RoundRectangle 10">
+                                    <VerticalStackLayout Spacing="8">
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <Label Text="{Binding DisplayName}" FontSize="12" FontAttributes="Bold" TextColor="#F8FAFC" />
+                                            <Border Grid.Column="1" BackgroundColor="#064E3B" Stroke="Transparent" Padding="6,2" StrokeShape="RoundRectangle 4">
+                                                <Label Text="{Binding Status}" FontSize="9" FontAttributes="Bold" TextColor="{Binding StatusBadgeColor}" />
+                                            </Border>
+                                        </Grid>
 
-                                <Button Text="Humidity"
-                                         Command="{Binding SelectChannelCommand}"
-                                         CommandParameter="Humidity"
-                                         BackgroundColor="{Binding HumidityBtnBg}"
-                                         TextColor="White"
-                                         FontSize="{OnIdiom Phone=11, Default=10}" FontAttributes="Bold" HeightRequest="{OnIdiom Phone=36, Default=30}" CornerRadius="6" Padding="12,0" />
+                                        <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                                            <Border BackgroundColor="#0B1220" Stroke="#1E293B" Padding="8,6" StrokeShape="RoundRectangle 6">
+                                                <VerticalStackLayout Spacing="1">
+                                                    <Label Text="HEALTH SCORE" FontSize="8" TextColor="#64748B" FontAttributes="Bold" />
+                                                    <Label Text="{Binding QualityScorePct, StringFormat='{0:F1}%'}" FontSize="13" FontAttributes="Bold" TextColor="#34D399" />
+                                                </VerticalStackLayout>
+                                            </Border>
+                                            <Border Grid.Column="1" BackgroundColor="#0B1220" Stroke="#1E293B" Padding="8,6" StrokeShape="RoundRectangle 6">
+                                                <VerticalStackLayout Spacing="1">
+                                                    <Label Text="FLAGGED EVENTS" FontSize="8" TextColor="#64748B" FontAttributes="Bold" />
+                                                    <Label Text="{Binding FlaggedAnomalyCount, StringFormat='{0:N0}'}" FontSize="13" FontAttributes="Bold" TextColor="#F59E0B" />
+                                                </VerticalStackLayout>
+                                            </Border>
+                                        </Grid>
 
-                                <Button Text="Pressure"
-                                         Command="{Binding SelectChannelCommand}"
-                                         CommandParameter="Pressure"
-                                         BackgroundColor="{Binding PressureBtnBg}"
-                                         TextColor="White"
-                                         FontSize="{OnIdiom Phone=11, Default=10}" FontAttributes="Bold" HeightRequest="{OnIdiom Phone=36, Default=30}" CornerRadius="6" Padding="12,0" />
-
-                            </HorizontalStackLayout>
-                        </ScrollView>
-
-                        <ScrollView Grid.Row="{OnIdiom Phone=1, Default=0}"
-                                    Grid.Column="{OnIdiom Phone=0, Default=1}"
-                                    Orientation="Horizontal"
-                                    HorizontalScrollBarVisibility="Never"
-                                    HorizontalOptions="{OnIdiom Phone=Fill, Default=End}">
-                            <HorizontalStackLayout Spacing="6" VerticalOptions="Center">
-                                <Label Text="Events:" FontSize="10" FontAttributes="Bold" TextColor="#64748B" VerticalOptions="Center" />
-
-                                <Button Text="Baseline"
-                                        Command="{Binding ResetToHistoricalStreamCommand}"
-                                        BackgroundColor="#1E293B" TextColor="#38BDF8" FontSize="10" HeightRequest="{OnIdiom Phone=32, Default=28}" CornerRadius="6" Padding="10,0" />
-
-                                <Button Text="Spike (-33°C)"
-                                        Command="{Binding ZoomToSpikeFaultCommand}"
-                                        BackgroundColor="#2E1065" TextColor="#C084FC" FontSize="10" HeightRequest="{OnIdiom Phone=32, Default=28}" CornerRadius="6" Padding="10,0" />
-
-                                <Button Text="Freeze"
-                                        Command="{Binding ZoomToFreezeFaultCommand}"
-                                        BackgroundColor="#0C4A6E" TextColor="#38BDF8" FontSize="10" HeightRequest="{OnIdiom Phone=32, Default=28}" CornerRadius="6" Padding="10,0" />
-
-                                <Button Text="Heatwave (46°C)"
-                                        Command="{Binding ZoomToHeatwaveCommand}"
-                                        BackgroundColor="#451A03" TextColor="#FBBF24" FontSize="10" HeightRequest="{OnIdiom Phone=32, Default=28}" CornerRadius="6" Padding="10,0" />
-                            </HorizontalStackLayout>
-                        </ScrollView>
+                                        <Label Text="{Binding QualityDescription}" FontSize="9" TextColor="#94A3B8" />
+                                    </VerticalStackLayout>
+                                </Border>
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
                     </Grid>
-                </Border>
 
-                <Border Grid.Row="1"
-                        BackgroundColor="#131B2E"
-                        Stroke="#1E293B"
-                        Padding="14"
-                        StrokeShape="RoundRectangle 12">
-                    <Grid RowDefinitions="Auto,*">
-                        <VerticalStackLayout Spacing="2" Margin="0,0,0,8">
-                            <Label Text="{Binding ChartTitle}" FontSize="13" FontAttributes="Bold" TextColor="#38BDF8" />
-                            <Label Text="{Binding ChartSubtitle}" FontSize="11" TextColor="#94A3B8" />
-                        </VerticalStackLayout>
-
-                        <lvc:CartesianChart Grid.Row="1"
-                                            Series="{Binding ChartSeries}"
-                                            XAxes="{Binding ChartXAxes}"
-                                            YAxes="{Binding ChartYAxes}"
-                                            MinimumHeightRequest="240"
-                                            TooltipPosition="Top" />
-                    </Grid>
-                </Border>
-
-                <Border Grid.Row="2"
-                        BackgroundColor="#131B2E"
-                        Stroke="#1E293B"
-                        Padding="12,8"
-                        StrokeShape="RoundRectangle 8">
-                    <Grid ColumnDefinitions="{OnIdiom Phone='*,*', Default='*,*,*,*'}"
+                    <Grid ColumnDefinitions="{OnIdiom Phone='*', Default='1.05*,0.95*'}"
                           RowDefinitions="{OnIdiom Phone='Auto,Auto', Default='Auto'}"
-                          ColumnSpacing="8" RowSpacing="6">
-                        <VerticalStackLayout Grid.Row="0" Grid.Column="0" Spacing="1">
-                            <Label Text="{Binding TelemetryLegend1Title}" FontSize="9" TextColor="#64748B" />
-                            <Label Text="{Binding TelemetryLegend1Value}" FontSize="11" FontAttributes="Bold" TextColor="{Binding TelemetryLegend1Color}" />
-                        </VerticalStackLayout>
-                        <VerticalStackLayout Grid.Row="0" Grid.Column="1" Spacing="1">
-                            <Label Text="{Binding TelemetryLegend2Title}" FontSize="9" TextColor="#64748B" />
-                            <Label Text="{Binding TelemetryLegend2Value}" FontSize="11" FontAttributes="Bold" TextColor="{Binding TelemetryLegend2Color}" />
-                        </VerticalStackLayout>
-                        <VerticalStackLayout Grid.Row="{OnIdiom Phone=1, Default=0}" Grid.Column="{OnIdiom Phone=0, Default=2}" Spacing="1">
-                            <Label Text="{Binding TelemetryLegend3Title}" FontSize="9" TextColor="#64748B" />
-                            <Label Text="{Binding TelemetryLegend3Value}" FontSize="11" FontAttributes="Bold" TextColor="{Binding TelemetryLegend3Color}" />
-                        </VerticalStackLayout>
-                        <VerticalStackLayout Grid.Row="{OnIdiom Phone=1, Default=0}" Grid.Column="{OnIdiom Phone=1, Default=3}" Spacing="1">
-                            <Label Text="{Binding TelemetryLegend4Title}" FontSize="9" TextColor="#64748B" />
-                            <Label Text="{Binding TelemetryLegend4Value}" FontSize="11" FontAttributes="Bold" TextColor="{Binding TelemetryLegend4Color}" />
-                        </VerticalStackLayout>
+                          ColumnSpacing="14"
+                          RowSpacing="14">
+
+                        <Border Grid.Row="0" Grid.Column="0"
+                                BackgroundColor="#131B2E" Stroke="#1E293B" Padding="16" StrokeShape="RoundRectangle 10">
+                            <VerticalStackLayout Spacing="10">
+                                <VerticalStackLayout Spacing="2">
+                                    <Label Text="Anomalies by Failure Category" FontSize="13" FontAttributes="Bold" TextColor="#38BDF8" />
+                                    <Label Text="Model classification of identified sensor anomalies across 32,774 records:" FontSize="10" TextColor="#94A3B8" />
+                                </VerticalStackLayout>
+
+                                <lvc:CartesianChart Series="{Binding IncidentChartSeries}"
+                                                    XAxes="{Binding IncidentXAxes}"
+                                                    YAxes="{Binding IncidentYAxes}"
+                                                    MinimumHeightRequest="220"
+                                                    TooltipPosition="Top" />
+
+                                <Border BackgroundColor="#0F172A" Stroke="#1E293B" Padding="10,8" StrokeShape="RoundRectangle 6">
+                                    <Grid ColumnDefinitions="*,*,*" ColumnSpacing="6">
+                                        <VerticalStackLayout Spacing="1">
+                                            <Label Text="TOTAL ANALYZED" FontSize="7" TextColor="#64748B" FontAttributes="Bold" />
+                                            <Label Text="{Binding ProblemIncidentsCount, StringFormat='{0:N0}'}" FontSize="11" FontAttributes="Bold" TextColor="#F8FAFC" />
+                                        </VerticalStackLayout>
+                                        <VerticalStackLayout Grid.Column="1" Spacing="1">
+                                            <Label Text="HARDWARE FAULTS" FontSize="7" TextColor="#64748B" FontAttributes="Bold" />
+                                            <Label Text="{Binding ProbableFaultsCount, StringFormat='{0:N0}'}" FontSize="11" FontAttributes="Bold" TextColor="#EF4444" />
+                                        </VerticalStackLayout>
+                                        <VerticalStackLayout Grid.Column="2" Spacing="1">
+                                            <Label Text="BENIGN EXTREMES" FontSize="7" TextColor="#64748B" FontAttributes="Bold" />
+                                            <Label Text="{Binding WeatherExtremesCount, StringFormat='{0:N0}'}" FontSize="11" FontAttributes="Bold" TextColor="#10B981" />
+                                        </VerticalStackLayout>
+                                    </Grid>
+                                </Border>
+                            </VerticalStackLayout>
+                        </Border>
+
+                        <Border Grid.Row="{OnIdiom Phone=1, Default=0}" Grid.Column="{OnIdiom Phone=0, Default=1}"
+                                BackgroundColor="#131B2E" Stroke="#1E293B" Padding="16" StrokeShape="RoundRectangle 10">
+                            <VerticalStackLayout Spacing="10">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <VerticalStackLayout Spacing="2">
+                                        <Label Text="Flagged Anomaly Incidents Log" FontSize="13" FontAttributes="Bold" TextColor="#38BDF8" />
+                                        <Label Text="Detailed root cause isolation for logged station events:" FontSize="10" TextColor="#94A3B8" />
+                                    </VerticalStackLayout>
+                                    <Border Grid.Column="1" BackgroundColor="#1E293B" Stroke="Transparent" Padding="6,2" StrokeShape="RoundRectangle 4" VerticalOptions="Center">
+                                        <Label Text="{Binding EventsList.Count, StringFormat='{0} Events'}" FontSize="9" FontAttributes="Bold" TextColor="#94A3B8" />
+                                    </Border>
+                                </Grid>
+
+                                <VerticalStackLayout Spacing="8" BindableLayout.ItemsSource="{Binding EventsList}">
+                                    <BindableLayout.ItemTemplate>
+                                        <DataTemplate x:DataType="models:AnomalyEvent">
+                                            <Border BackgroundColor="#0F172A" Stroke="#1E293B" Padding="12,10" StrokeShape="RoundRectangle 8">
+                                                <VerticalStackLayout Spacing="5">
+                                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                                                        <Label Text="{Binding RootCause}" FontSize="11" FontAttributes="Bold" TextColor="#F8FAFC" VerticalOptions="Center" />
+                                                        <Border Grid.Column="1" BackgroundColor="#1E293B" Stroke="Transparent" Padding="6,2" StrokeShape="RoundRectangle 4">
+                                                            <Label Text="{Binding PeakScoreText}" FontSize="8" FontAttributes="Bold" TextColor="{Binding SeverityColor}" />
+                                                        </Border>
+                                                    </Grid>
+
+                                                    <Label Text="{Binding Description}" FontSize="10" TextColor="#94A3B8" LineBreakMode="WordWrap" />
+
+                                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6" Margin="0,2,0,0">
+                                                        <Label Text="{Binding StartTime}" FontSize="9" TextColor="#64748B" VerticalOptions="Center" />
+                                                        <Label Grid.Column="1" Text="{Binding EventClassification}" FontSize="9" FontAttributes="Bold" TextColor="{Binding SeverityColor}" HorizontalOptions="End" VerticalOptions="Center" />
+                                                    </Grid>
+                                                </VerticalStackLayout>
+                                            </Border>
+                                        </DataTemplate>
+                                    </BindableLayout.ItemTemplate>
+                                </VerticalStackLayout>
+                            </VerticalStackLayout>
+                        </Border>
                     </Grid>
-                </Border>
-            </Grid>
+
+                </VerticalStackLayout>
+            </ScrollView>
 
             <ScrollView IsVisible="{Binding IsTesterTab}" InputTransparent="{Binding IsNotTesterTab}">
                 <VerticalStackLayout Spacing="14">
@@ -481,6 +502,21 @@
                         </Border>
 
                         <VerticalStackLayout Grid.Row="{OnIdiom Phone=1, Default=0}" Grid.Column="{OnIdiom Phone=0, Default=1}" Spacing="10">
+                            <Border BackgroundColor="#131B2E" Stroke="#1E293B" Padding="14,12" StrokeShape="RoundRectangle 10">
+                                <VerticalStackLayout Spacing="8">
+                                    <VerticalStackLayout Spacing="2">
+                                        <Label Text="Inference Throughput Benchmark (obs/sec)" FontSize="12" FontAttributes="Bold" TextColor="#10B981" />
+                                        <Label Text="Candidate model evaluation speed on 32,774 observations:" FontSize="9" TextColor="#94A3B8" />
+                                    </VerticalStackLayout>
+
+                                    <lvc:CartesianChart Series="{Binding BenchmarkChartSeries}"
+                                                        XAxes="{Binding BenchmarkXAxes}"
+                                                        YAxes="{Binding BenchmarkYAxes}"
+                                                        MinimumHeightRequest="150"
+                                                        TooltipPosition="Top" />
+                                </VerticalStackLayout>
+                            </Border>
+
                             <VerticalStackLayout Spacing="10" BindableLayout.ItemsSource="{Binding BenchmarkList}">
                                 <BindableLayout.ItemTemplate>
                                     <DataTemplate x:DataType="models:ModelBenchmarkItem">
