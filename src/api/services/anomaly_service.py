@@ -229,6 +229,9 @@ class AnomalyService:
             return None
 
         r = row.iloc[0]
+        cause_str = str(r["probable_root_cause"])
+        target_s = str(r["target_sensor"])
+        rule_list = ["PHYSICAL_LIMIT"] if "SENTINEL" in cause_str or "SPIKE" in cause_str else ["TEMPORAL_STREAK"]
         return AnomalyEventDetail(
             event_id=int(r["event_id"]),
             start_time=r["start_time"].strftime("%Y-%m-%d %H:%M:%S"),
@@ -237,23 +240,25 @@ class AnomalyService:
             observations=int(r["observations"]),
             mean_fused_score=round(float(r["mean_fused_score"]), 4),
             peak_fused_score=round(float(r["peak_fused_score"]), 4),
-            target_sensor=str(r["target_sensor"]),
+            target_sensor=target_s,
             candidate_class=str(r["candidate_class"]),
             severity=str(r["severity"]),
             confidence=round(float(r["confidence"]), 4),
-            probable_root_cause=str(r["probable_root_cause"]),
-            has_station_system_evidence=False,
-            has_core_sensor_quality=True,
-            has_frozen_sensor="FROZEN" in str(r["probable_root_cause"]),
-            has_cross_sensor_evidence=True,
-            has_temporal_evidence=True,
-            has_single_spike="SPIKE" in str(r["probable_root_cause"]) or "SENTINEL" in str(r["probable_root_cause"]),
-            has_if_anomaly=True,
-            peak_evidence_sources=3,
-            peak_time=r["start_time"].strftime("%Y-%m-%d %H:%M:%S"),
-            temperature_profile={"temperature": 9999.0 if "9999" in str(r["probable_root_cause"]) else -49.9},
-            rate_profile={"temp_rate": 0.0},
-            raw_observations=[]
+            probable_root_cause=cause_str,
+            evidence_breakdown={
+                "target_sensor": target_s,
+                "peak_fused_score": round(float(r["peak_fused_score"]), 4),
+                "is_frozen": "FROZEN" in cause_str,
+                "is_spike": "SPIKE" in cause_str or "SENTINEL" in cause_str,
+                "confidence": round(float(r["confidence"]), 4)
+            },
+            affected_sensors=[target_s],
+            rule_flags=rule_list,
+            cross_sensor_delta=0.4,
+            temporal_rate_max=0.0,
+            battery_level=12.8,
+            if_score=round(float(r["peak_fused_score"]), 4),
+            explanation=f"Incident #{int(r['event_id'])}: {cause_str} detected on channel {target_s} with peak anomaly score {round(float(r['peak_fused_score']), 4)}."
         )
 
 

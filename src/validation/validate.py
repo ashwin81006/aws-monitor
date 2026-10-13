@@ -1,6 +1,7 @@
 import os
 import sys
 import pickle
+import time
 import warnings
 from typing import Dict, List, Tuple, Any
 import numpy as np
@@ -13,11 +14,12 @@ sys.path.insert(0, PROJECT_ROOT)
 
 from src.preprocessing.preprocess import load_raw_dataset, preprocess_data
 from src.features.feature_engineering import StreamingFeatureExtractor, FEATURE_COLUMNS
+from src.core.detector import AWSUnifiedDetector
 
 MODELS_DIR = os.path.join(PROJECT_ROOT, "models")
 
 
-def inject_faults(
+def inject_comprehensive_faults(
     df: pd.DataFrame,
     random_seed: int = 42
 ) -> Tuple[pd.DataFrame, List[Dict[str, Any]]]:
@@ -31,169 +33,191 @@ def inject_faults(
 
     spike_indices = np.random.choice(range(50, n_rows - 50), size=25, replace=False)
     for idx in spike_indices:
-        channel = np.random.choice(["temperature", "pressure", "humidity"])
-        if channel == "temperature":
-            injected_df.loc[idx, "temperature"] += np.random.choice([15.0, -18.0, 22.0])
-        elif channel == "pressure":
-            injected_df.loc[idx, "pressure"] += np.random.choice([35.0, -30.0])
+        ch = np.random.choice(["temperature", "pressure", "humidity"])
+        if ch == "temperature":
+            injected_df.loc[idx, "temperature"] += np.random.choice([16.0, -22.0, 24.0])
+        elif ch == "pressure":
+            injected_df.loc[idx, "pressure"] += np.random.choice([32.0, -28.0])
         else:
             injected_df.loc[idx, "humidity"] = min(100.0, injected_df.loc[idx, "humidity"] + 45.0)
 
         injected_df.loc[idx, "ground_truth_fault"] = 1
         injected_df.loc[idx, "fault_type"] = "SPIKE"
-        fault_events.append({"type": "SPIKE", "start_idx": idx, "end_idx": idx, "channel": channel})
+        fault_events.append({"type": "SPIKE", "start_idx": idx, "end_idx": idx, "channel": ch})
 
-    frozen_starts = np.random.choice(range(100, n_rows - 100), size=15, replace=False)
+    frozen_starts = np.random.choice(range(80, n_rows - 80), size=15, replace=False)
     for start in frozen_starts:
-        stuck_val = injected_df.loc[start, "temperature"]
-        for step in range(start, start + 6):
-            injected_df.loc[step, "temperature"] = stuck_val
+        ch = np.random.choice(["temperature", "humidity"])
+        stuck_val = injected_df.loc[start, ch]
+        streak_len = np.random.randint(4, 8)
+        for step in range(start, min(n_rows, start + streak_len)):
+            injected_df.loc[step, ch] = stuck_val
             injected_df.loc[step, "ground_truth_fault"] = 1
             injected_df.loc[step, "fault_type"] = "FROZEN_SENSOR"
-        fault_events.append({"type": "FROZEN_SENSOR", "start_idx": start, "end_idx": start + 5, "channel": "temperature"})
+        fault_events.append({"type": "FROZEN_SENSOR", "start_idx": start, "end_idx": min(n_rows - 1, start + streak_len - 1), "channel": ch})
 
-    drift_starts = np.random.choice(range(150, n_rows - 150), size=12, replace=False)
+    drift_starts = np.random.choice(range(120, n_rows - 120), size=15, replace=False)
     for start in drift_starts:
-        for i, step in enumerate(range(start, start + 10)):
-            injected_df.loc[step, "temperature"] += (i + 1) * 0.8
+        slope = np.random.choice([0.6, 0.9, 1.2])
+        drift_len = 10
+        for i, step in enumerate(range(start, min(n_rows, start + drift_len))):
+            injected_df.loc[step, "temperature"] += (i + 1) * slope
             injected_df.loc[step, "ground_truth_fault"] = 1
             injected_df.loc[step, "fault_type"] = "CALIBRATION_DRIFT"
-        fault_events.append({"type": "CALIBRATION_DRIFT", "start_idx": start, "end_idx": start + 9, "channel": "temperature"})
+        fault_events.append({"type": "CALIBRATION_DRIFT", "start_idx": start, "end_idx": min(n_rows - 1, start + drift_len - 1), "channel": "temperature"})
 
-    comm_starts = np.random.choice(range(200, n_rows - 200), size=15, replace=False)
+    comm_starts = np.random.choice(range(150, n_rows - 150), size=15, replace=False)
     for start in comm_starts:
-        for step in range(start, start + 4):
+        gap_len = np.random.randint(2, 6)
+        for step in range(start, min(n_rows, start + gap_len)):
             injected_df.loc[step, "temperature"] = np.nan
             injected_df.loc[step, "ground_truth_fault"] = 1
             injected_df.loc[step, "fault_type"] = "COMMUNICATION_ERROR"
-        fault_events.append({"type": "COMMUNICATION_ERROR", "start_idx": start, "end_idx": start + 3, "channel": "all"})
+        fault_events.append({"type": "COMMUNICATION_ERROR", "start_idx": start, "end_idx": min(n_rows - 1, start + gap_len - 1), "channel": "all"})
+
+    heatwave_starts = np.random.choice(range(200, n_rows - 200), size=10, replace=False)
+    for start in heatwave_starts:
+        for step in range(start, min(n_rows, start + 8)):
+            injected_df.loc[step, "temperature"] = 44.5
+            injected_df.loc[step, "humidity"] = 24.0
+            injected_df.loc[step, "fault_type"] = "BENIGN_WEATHER_EXTREME"
 
     return injected_df, fault_events
 
 
-def run_validation(test_sample_size: int = 4000) -> Dict[str, Any]:
+def evaluate_single_detector(
+    detector: AWSUnifiedDetector,
+    test_df: pd.DataFrame,
+    fault_events: List[Dict[str, Any]]
+) -> Dict[str, Any]:
+    detector.reset_history()
+    t0 = time.perf_counter()
+    predictions = []
+
+    for _, row in test_df.iterrows():
+        t = row["temperature"]
+        rh = row["humidity"]
+        p = row["pressure"]
+        ts = row["timestamp"] if "timestamp" in row else None
+        res = detector.diagnose_and_detect(temp=t, rh=rh, press=p, timestamp=ts)
+        predictions.append(1 if res["is_anomaly"] else 0)
+
+    elapsed_sec = max(time.perf_counter() - t0, 1e-4)
+    pred_series = pd.Series(predictions)
+    y_true = test_df["ground_truth_fault"].to_numpy()
+    y_pred = pred_series.to_numpy()
+
+    tp = int(((y_true == 1) & (y_pred == 1)).sum())
+    fp = int(((y_true == 0) & (y_pred == 1)).sum())
+    fn = int(((y_true == 1) & (y_pred == 0)).sum())
+    tn = int(((y_true == 0) & (y_pred == 0)).sum())
+
+    row_precision = round(tp / max(tp + fp, 1), 4)
+    row_recall = round(tp / max(tp + fn, 1), 4)
+    row_f1 = round(2 * row_precision * row_recall / max(row_precision + row_recall, 1e-4), 4)
+    fpr = round(fp / max(fp + tn, 1), 4)
+
+    matched_events = 0
+    total_events = len(fault_events)
+    latencies = []
+    per_fault_metrics = {}
+
+    for f_type in ["SPIKE", "FROZEN_SENSOR", "CALIBRATION_DRIFT", "COMMUNICATION_ERROR"]:
+        type_events = [ev for ev in fault_events if ev["type"] == f_type]
+        type_matched = 0
+        type_latencies = []
+
+        for ev in type_events:
+            w_preds = pred_series.iloc[ev["start_idx"]: ev["end_idx"] + 1]
+            if (w_preds == 1).any():
+                type_matched += 1
+                first_step = int((w_preds == 1).idxmax() - ev["start_idx"] + 1)
+                type_latencies.append(first_step)
+
+        matched_events += type_matched
+        latencies.extend(type_latencies)
+        type_recall = round(type_matched / max(len(type_events), 1), 4)
+        mean_lat = round(float(np.mean(type_latencies)), 1) if type_latencies else 1.0
+
+        per_fault_metrics[f_type] = {
+            "total_events": len(type_events),
+            "detected_events": type_matched,
+            "event_recall": type_recall,
+            "mean_detection_delay_steps": mean_lat
+        }
+
+    event_recall = round(matched_events / max(total_events, 1), 4)
+
+    alert_starts = (pred_series == 1) & (pred_series.shift(1, fill_value=0) == 0)
+    alert_indices = alert_starts[alert_starts].index.tolist()
+    unmatched_alerts = 0
+    for a_idx in alert_indices:
+        in_any = any(ev["start_idx"] <= a_idx <= ev["end_idx"] for ev in fault_events)
+        if not in_any:
+            unmatched_alerts += 1
+
+    event_precision = round(matched_events / max(matched_events + unmatched_alerts, 1), 4)
+    event_f1 = round(2 * event_precision * event_recall / max(event_precision + event_recall, 1e-4), 4)
+    mean_delay = round(float(np.mean(latencies)), 1) if latencies else 1.0
+
+    benign_subset = test_df[test_df["fault_type"] == "BENIGN_WEATHER_EXTREME"]
+    benign_false_alarms = int((pred_series.iloc[benign_subset.index] == 1).sum()) if len(benign_subset) > 0 else 0
+    benign_total = len(benign_subset)
+
+    return {
+        "mode": detector.mode,
+        "row_precision": row_precision,
+        "row_recall": row_recall,
+        "row_f1": row_f1,
+        "event_precision": event_precision,
+        "event_recall": event_recall,
+        "event_f1": event_f1,
+        "false_positive_rate": fpr,
+        "mean_detection_delay": mean_delay,
+        "tp": tp,
+        "fp": fp,
+        "fn": fn,
+        "tn": tn,
+        "benign_weather_false_alarms": benign_false_alarms,
+        "benign_weather_total": benign_total,
+        "throughput_obs_sec": int(len(test_df) / elapsed_sec),
+        "evaluation_seconds": round(elapsed_sec, 2),
+        "per_fault": per_fault_metrics
+    }
+
+
+def run_comparative_benchmark(sample_size: int = 4000) -> Dict[str, Any]:
     raw_df = load_raw_dataset()
     _, clean_df = preprocess_data(raw_df)
 
     split_idx = int(len(clean_df) * 0.70)
-    test_clean = clean_df.iloc[split_idx: split_idx + test_sample_size].copy().reset_index(drop=True)
+    test_clean = clean_df.iloc[split_idx: split_idx + sample_size].copy().reset_index(drop=True)
 
-    test_injected, fault_events = inject_faults(test_clean)
+    test_injected, fault_events = inject_comprehensive_faults(test_clean)
 
-    with open(os.path.join(MODELS_DIR, "isolation_forest.pkl"), "rb") as f:
-        model_if = pickle.load(f)
-    with open(os.path.join(MODELS_DIR, "scaler.pkl"), "rb") as f:
-        scaler = pickle.load(f)
+    modes_to_test = [
+        ("isolation_forest", "Baseline Production"),
+        ("one_class_svm", "Boundary Comparison"),
+        ("lof", "Density Comparison"),
+        ("calibrated_ensemble", "Calibrated Score Fusion Ensemble")
+    ]
 
-    extractor = StreamingFeatureExtractor(window_size=8)
-    predictions = []
-
-    for i, row in test_injected.iterrows():
-        t = row["temperature"]
-        rh = row["humidity"]
-        p = row["pressure"]
-
-        is_missing = pd.isna(t) or pd.isna(rh) or pd.isna(p)
-        is_extreme_spike = False
-        is_frozen = False
-
-        if not is_missing:
-            if t > 52.0 or t < 5.0 or p < 890.0 or p > 1050.0:
-                is_extreme_spike = True
-
-            if len(extractor.history) >= 4:
-                recent_temps = [pt[0] for pt in extractor.history]
-                if np.std(recent_temps) < 1e-3 and abs(t - recent_temps[-1]) < 1e-3:
-                    is_frozen = True
-
-            feats = extractor.push(temp=t, rh=rh, press=p)
-            X_df = pd.DataFrame([feats])[FEATURE_COLUMNS]
-            X_scaled = scaler.transform(X_df)
-            ml_anomaly = bool(model_if.decision_function(X_scaled)[0] < 0.0)
-        else:
-            ml_anomaly = True
-
-        detected = bool(is_missing or is_extreme_spike or is_frozen or ml_anomaly)
-        predictions.append(1 if detected else 0)
-
-    test_injected["predicted_alert"] = predictions
-
-    scenario_metrics = {}
-    for f_type in ["SPIKE", "FROZEN_SENSOR", "CALIBRATION_DRIFT", "COMMUNICATION_ERROR"]:
-        subset = test_injected[test_injected["fault_type"] == f_type]
-        tp = int(((subset["ground_truth_fault"] == 1) & (subset["predicted_alert"] == 1)).sum())
-        fn = int(((subset["ground_truth_fault"] == 1) & (subset["predicted_alert"] == 0)).sum())
-        recall = round(tp / max(tp + fn, 1), 4)
-
-        event_latencies = []
-        for ev in fault_events:
-            if ev["type"] == f_type:
-                ev_preds = test_injected.loc[ev["start_idx"]: ev["end_idx"], "predicted_alert"]
-                if (ev_preds == 1).any():
-                    first_detect = (ev_preds == 1).idxmax() - ev["start_idx"] + 1
-                    event_latencies.append(first_detect)
-
-        mean_latency = round(float(np.mean(event_latencies)), 1) if event_latencies else 1.0
-        scenario_metrics[f_type] = {
-            "injected_points": len(subset),
-            "detected_points": tp,
-            "recall": recall,
-            "mean_latency_steps": mean_latency
-        }
-
-    matched_events = 0
-    total_events = len(fault_events)
-    for ev in fault_events:
-        window_preds = test_injected.loc[ev["start_idx"]: ev["end_idx"], "predicted_alert"]
-        if (window_preds == 1).any():
-            matched_events += 1
-
-    event_recall = round(matched_events / max(total_events, 1), 4)
-
-    pred_series = test_injected["predicted_alert"]
-    alert_starts = (pred_series == 1) & (pred_series.shift(1, fill_value=0) == 0)
-    alert_indices = test_injected.index[alert_starts].tolist()
-
-    unmatched_alert_episodes = 0
-    for a_idx in alert_indices:
-        in_any_fault = any(ev["start_idx"] <= a_idx <= ev["end_idx"] for ev in fault_events)
-        if not in_any_fault:
-            unmatched_alert_episodes += 1
-
-    event_precision = round(matched_events / max(matched_events + unmatched_alert_episodes, 1), 4)
-    event_f1 = round(2 * event_precision * event_recall / max(event_precision + event_recall, 1e-4), 4)
-
-    y_true = test_injected["ground_truth_fault"].to_numpy()
-    y_pred = test_injected["predicted_alert"].to_numpy()
-
-    tp_total = int(((y_true == 1) & (y_pred == 1)).sum())
-    fp_total = int(((y_true == 0) & (y_pred == 1)).sum())
-    fn_total = int(((y_true == 1) & (y_pred == 0)).sum())
-    tn_total = int(((y_true == 0) & (y_pred == 0)).sum())
-
-    precision = round(tp_total / max(tp_total + fp_total, 1), 4)
-    recall = round(tp_total / max(tp_total + fn_total, 1), 4)
-    f1 = round(2 * precision * recall / max(precision + recall, 1e-4), 4)
+    comparisons = []
+    for mode, label in modes_to_test:
+        det = AWSUnifiedDetector(mode=mode)
+        metrics = evaluate_single_detector(det, test_injected, fault_events)
+        metrics["label"] = label
+        comparisons.append(metrics)
 
     return {
-        "precision": precision,
-        "recall": recall,
-        "f1_score": f1,
-        "event_precision": event_precision,
-        "event_recall": event_recall,
-        "event_f1": event_f1,
-        "total_events": total_events,
-        "matched_events": matched_events,
-        "unmatched_alerts": unmatched_alert_episodes,
-        "tp": tp_total,
-        "fp": fp_total,
-        "fn": fn_total,
-        "tn": tn_total,
-        "scenarios": scenario_metrics,
-        "total_evaluated_points": len(test_injected)
+        "sample_size": sample_size,
+        "total_fault_events": len(fault_events),
+        "comparisons": comparisons
     }
 
 
 if __name__ == "__main__":
-    res = run_validation()
-    print(f"Validation: Precision={res['precision']:.3f}, Recall={res['recall']:.3f}, F1={res['f1_score']:.3f}")
+    results = run_comparative_benchmark(sample_size=3000)
+    print("=== MODEL COMPARISON BENCHMARK ===")
+    for c in results["comparisons"]:
+        print(f"[{c['mode'].upper()}] Row F1: {c['row_f1']:.3f} | Event F1: {c['event_f1']:.3f} | Delay: {c['mean_detection_delay']} steps | Speed: {c['throughput_obs_sec']:,} obs/s")

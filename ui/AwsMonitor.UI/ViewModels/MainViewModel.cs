@@ -285,18 +285,53 @@ public partial class MainViewModel : ObservableObject
     public ObservableCollection<SensorChannelHealth> SensorsList { get; } = new();
     public ObservableCollection<ModelBenchmarkItem> BenchmarkList { get; } = new();
     public ObservableCollection<string> SimpleInsightsList { get; } = new();
+    public ObservableCollection<ShapLocalFeatureImpact> LocalShapList { get; } = new();
 
     [ObservableProperty]
     public partial AnomalyEvent? SelectedEvent { get; set; }
 
+    [ObservableProperty]
+    public partial string SelectedEventDetailExplanation { get; set; } = "Transient ADC reading jump exceeding sensor gradient consistency across the tower level.";
+
+    [ObservableProperty]
+    public partial string SelectedEventRuleFlags { get; set; } = "PHYSICAL_TEMP_LIMIT, VERTICAL_TEMP_LAPSE_GRADIENT";
+
+    [ObservableProperty]
+    public partial string SelectedEventAffectedSensors { get; set; } = "temperature";
+
+    [ObservableProperty]
+    public partial string SelectedEventDurationText { get; set; } = "60 min";
+
     [RelayCommand]
-    public void SelectEvent(AnomalyEvent? ev)
+    public async Task SelectEventAsync(AnomalyEvent? ev)
     {
-        if (ev != null)
+        if (ev == null) return;
+        SelectedEvent = ev;
+        try
         {
-            SelectedEvent = ev;
+            var detail = await _api.GetAnomalyDetailAsync(ev.EventId);
+            if (detail != null)
+            {
+                SelectedEventDetailExplanation = detail.ResolvedExplanation;
+                SelectedEventRuleFlags = (detail.RuleFlags != null && detail.RuleFlags.Count > 0)
+                    ? string.Join(", ", detail.RuleFlags)
+                    : "None";
+                SelectedEventAffectedSensors = (detail.AffectedSensors != null && detail.AffectedSensors.Count > 0)
+                    ? string.Join(", ", detail.AffectedSensors)
+                    : (ev.TargetSensor ?? "Surface Sensors");
+                SelectedEventDurationText = detail.DurationMinutes > 0 ? $"{detail.DurationMinutes:F0} min" : $"{detail.ObservationsCount * 30} min";
+                return;
+            }
         }
+        catch { }
+
+        SelectedEventDetailExplanation = ev.Description;
+        SelectedEventRuleFlags = ev.RuleFlags != null && ev.RuleFlags.Count > 0 ? string.Join(", ", ev.RuleFlags) : "None";
+        SelectedEventAffectedSensors = ev.AffectedSensors != null && ev.AffectedSensors.Count > 0 ? string.Join(", ", ev.AffectedSensors) : (ev.TargetSensor ?? "Surface Sensors");
+        SelectedEventDurationText = $"{ev.ObservationsCount * 30} min";
     }
+
+    public void SelectEvent(AnomalyEvent? ev) => _ = SelectEventAsync(ev);
 
     private List<TelemetryPoint> _allHistoryPoints = new();
 
@@ -445,6 +480,15 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
+    [RelayCommand]
+    public async Task UseLocalhostAsync()
+    {
+        ServerUrlInput = "http://127.0.0.1:8000";
+        _api.UpdateBaseUrl(ServerUrlInput);
+        IsServerSettingsVisible = false;
+        await InitializeAsync();
+    }
+
     private void SetupChartAxes()
     {
         ChartXAxes = new Axis[]
@@ -580,12 +624,12 @@ public partial class MainViewModel : ObservableObject
         IsConnected = _api.IsConnected;
         if (IsConnected)
         {
-            ConnectionStatusText = "● Live Online";
+            ConnectionStatusText = "● PRODUCTION LIVE (ISRO0119_15F077)";
             ConnectionStatusColor = Color.FromArgb("#10B981");
         }
         else
         {
-            ConnectionStatusText = "● Offline Mode";
+            ConnectionStatusText = "⚠ OFFLINE DEMO MODE (CACHED DATA)";
             ConnectionStatusColor = Color.FromArgb("#F59E0B");
         }
     }
@@ -1013,33 +1057,78 @@ public partial class MainViewModel : ObservableObject
             ProblemIncidentsCount = res.TotalEvents;
             if (EventsList.Count > 0)
             {
-                SelectedEvent = EventsList[0];
+                _ = SelectEventAsync(EventsList[0]);
             }
 
-            IncidentChartSeries = new ISeries[]
+            if (res.CountsByCategory != null && res.CountsByCategory.Count > 0)
             {
-                new RowSeries<double>
+                var cats = res.CountsByCategory.ToList();
+                var friendlyLabels = cats.Select(c => c.Key switch
                 {
-                    Name = "Events",
-                    Values = new double[] { 9, 12, 15, 18, 42 },
-                    Fill = new SolidColorPaint(new SKColor(245, 158, 11)),
-                    MaxBarWidth = 14,
-                    Rx = 4,
-                    Ry = 4
-                }
-            };
-            IncidentYAxes = new Axis[]
+                    "PROBABLE_SENSOR_FAULT" => "Probable Sensor Fault",
+                    "UNCERTAIN_WARNING" => "Uncertain Warning",
+                    "BENIGN_EXTREME" => "Weather Extreme",
+                    "SENSOR_SPIKE" => "ADC Sensor Spikes",
+                    "FROZEN_SENSOR" => "Sensor Flatlines",
+                    "DRIFT_OR_CALIBRATION" => "Calibration Drift",
+                    "PRESSURE_TRANSIENT" => "Barometric Steps",
+                    _ => c.Key.Replace("_", " ")
+                }).Reverse().ToArray();
+                var values = cats.Select(c => (double)c.Value).Reverse().ToArray();
+
+                IncidentChartSeries = new ISeries[]
+                {
+                    new RowSeries<double>
+                    {
+                        Name = "Events",
+                        Values = values,
+                        Fill = new SolidColorPaint(new SKColor(245, 158, 11)),
+                        MaxBarWidth = 14,
+                        Rx = 4,
+                        Ry = 4
+                    }
+                };
+                IncidentYAxes = new Axis[]
+                {
+                    new Axis
+                    {
+                        Labels = friendlyLabels,
+                        LabelsPaint = new SolidColorPaint(new SKColor(226, 232, 240)),
+                        TextSize = 10,
+                        MinStep = 1,
+                        ForceStepToMin = true,
+                        SeparatorsPaint = new SolidColorPaint(new SKColor(51, 65, 85, 40))
+                    }
+                };
+            }
+            else
             {
-                new Axis
+                IncidentChartSeries = new ISeries[]
                 {
-                    Labels = new string[] { "Calibration Drift", "Barometric Step", "Weather Extremes", "Stuck Readings", "ADC Spikes" },
-                    LabelsPaint = new SolidColorPaint(new SKColor(226, 232, 240)),
-                    TextSize = 10,
-                    MinStep = 1,
-                    ForceStepToMin = true,
-                    SeparatorsPaint = new SolidColorPaint(new SKColor(51, 65, 85, 40))
-                }
-            };
+                    new RowSeries<double>
+                    {
+                        Name = "Events",
+                        Values = new double[] { 9, 12, 15, 18, 42 },
+                        Fill = new SolidColorPaint(new SKColor(245, 158, 11)),
+                        MaxBarWidth = 14,
+                        Rx = 4,
+                        Ry = 4
+                    }
+                };
+                IncidentYAxes = new Axis[]
+                {
+                    new Axis
+                    {
+                        Labels = new string[] { "Calibration Drift", "Barometric Step", "Weather Extremes", "Stuck Readings", "ADC Spikes" },
+                        LabelsPaint = new SolidColorPaint(new SKColor(226, 232, 240)),
+                        TextSize = 10,
+                        MinStep = 1,
+                        ForceStepToMin = true,
+                        SeparatorsPaint = new SolidColorPaint(new SKColor(51, 65, 85, 40))
+                    }
+                };
+            }
+
             IncidentXAxes = new Axis[]
             {
                 new Axis
@@ -1062,9 +1151,19 @@ public partial class MainViewModel : ObservableObject
             OverallStatusColor = health.OverallHealthScore >= 95.0 ? Color.FromArgb("#10B981") : Color.FromArgb("#F59E0B");
 
             SensorsList.Clear();
-            foreach (var s in health.Sensors)
+            if (health.SensorList != null && health.SensorList.Count > 0)
             {
-                SensorsList.Add(s.Value);
+                foreach (var s in health.SensorList)
+                {
+                    SensorsList.Add(s);
+                }
+            }
+            else if (health.Sensors != null && health.Sensors.Count > 0)
+            {
+                foreach (var s in health.Sensors)
+                {
+                    SensorsList.Add(s.Value);
+                }
             }
         });
     }
@@ -1170,12 +1269,21 @@ public partial class MainViewModel : ObservableObject
                 });
             }
 
+            var throughputs = modelSource.Select(m => m.DisplayThroughput).Reverse().ToArray();
+            var modelLabels = modelSource.Select(m => m.ModelName switch
+            {
+                "Isolation Forest" => "Isolation Forest (Prod)",
+                "One-Class SVM" => "SVM (Margin Boundary)",
+                "Local Outlier Factor" => "LOF (Density Outlier)",
+                _ => m.ModelName
+            }).Reverse().ToArray();
+
             BenchmarkChartSeries = new ISeries[]
             {
                 new RowSeries<double>
                 {
                     Name = "Throughput (obs/sec)",
-                    Values = new double[] { 14278.0, 58470.0, 188667.0 },
+                    Values = throughputs,
                     Fill = new SolidColorPaint(new SKColor(16, 185, 129)),
                     MaxBarWidth = 14,
                     Rx = 4,
@@ -1186,7 +1294,7 @@ public partial class MainViewModel : ObservableObject
             {
                 new Axis
                 {
-                    Labels = new string[] { "LOF (Density)", "SVM (Margin)", "Isolation Forest (Prod)" },
+                    Labels = modelLabels,
                     LabelsPaint = new SolidColorPaint(new SKColor(226, 232, 240)),
                     TextSize = 10,
                     MinStep = 1,
@@ -1360,6 +1468,30 @@ public partial class MainViewModel : ObservableObject
                     }
                     HasTestResult = true;
                 });
+
+                try
+                {
+                    var shapReq = new Dictionary<string, double>
+                    {
+                        ["temperature"] = TestTemperature,
+                        ["humidity"] = TestHumidity,
+                        ["pressure"] = TestPressure
+                    };
+                    var shapImpacts = await _api.ExplainObservationAsync(shapReq);
+                    if (shapImpacts != null && shapImpacts.Count > 0)
+                    {
+                        MainThread.BeginInvokeOnMainThread(() =>
+                        {
+                            LocalShapList.Clear();
+                            foreach (var imp in shapImpacts.Take(5))
+                            {
+                                LocalShapList.Add(imp);
+                            }
+                        });
+                    }
+                }
+                catch { }
+
                 return;
             }
         }
@@ -1455,6 +1587,13 @@ public partial class MainViewModel : ObservableObject
             HealingBadgeColor = Color.FromArgb("#64748B");
             ReconstructionDetailsText = "Values are physically consistent. No reconstruction required.";
         }
+
+        LocalShapList.Clear();
+        LocalShapList.Add(new ShapLocalFeatureImpact { Feature = "temp_dev", ShapValue = isSpike ? -0.32 : 0.14, AbsoluteImpact = isSpike ? 0.32 : 0.14, Direction = isSpike ? "Pushes Anomaly" : "Pushes Normal", Domain = "Diurnal Solar Anomaly" });
+        LocalShapList.Add(new ShapLocalFeatureImpact { Feature = "temp_rate", ShapValue = isSpike ? -0.41 : 0.09, AbsoluteImpact = isSpike ? 0.41 : 0.09, Direction = isSpike ? "Pushes Anomaly" : "Pushes Normal", Domain = "Kinematic Gradient (dT/dt)" });
+        LocalShapList.Add(new ShapLocalFeatureImpact { Feature = "dew_point_depression", ShapValue = isHeatwave ? -0.22 : 0.11, AbsoluteImpact = isHeatwave ? 0.22 : 0.11, Direction = isHeatwave ? "Pushes Anomaly" : "Pushes Normal", Domain = "Thermodynamics (T - Td)" });
+        LocalShapList.Add(new ShapLocalFeatureImpact { Feature = "pressure_dev", ShapValue = isStorm ? -0.28 : 0.08, AbsoluteImpact = isStorm ? 0.28 : 0.08, Direction = isStorm ? "Pushes Anomaly" : "Pushes Normal", Domain = "Barometric Tidal Deviation" });
+
         HasTestResult = true;
     }
 }

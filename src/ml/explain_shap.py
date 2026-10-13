@@ -124,7 +124,35 @@ class TreeShapService:
         if self.explainer is None:
             return []
 
-        row_df = pd.DataFrame([{col: feature_row.get(col, 0.0) for col in FEATURE_COLUMNS}])
+        full_feats = dict(feature_row)
+        t = full_feats.get("temperature", 28.5)
+        rh = full_feats.get("humidity", 65.0)
+        p = full_feats.get("pressure", 998.4)
+
+        if "dew_point" not in full_feats or "dew_point_depression" not in full_feats:
+            from src.features.feature_engineering import compute_dew_point
+            dp = float(compute_dew_point(np.array([t]), np.array([rh]))[0])
+            full_feats["dew_point"] = dp
+            full_feats["dew_point_depression"] = round(t - dp, 3)
+
+        if "temp_rate" not in full_feats:
+            full_feats["temp_rate"] = 0.0
+        if "humidity_rate" not in full_feats:
+            full_feats["humidity_rate"] = 0.0
+        if "pressure_rate" not in full_feats:
+            full_feats["pressure_rate"] = 0.0
+        if "temp_dev" not in full_feats:
+            full_feats["temp_dev"] = round(abs(t - 28.5) / 1.5, 3)
+        if "humidity_dev" not in full_feats:
+            full_feats["humidity_dev"] = round(abs(rh - 65.0) / 4.0, 3)
+        if "pressure_dev" not in full_feats:
+            full_feats["pressure_dev"] = round(abs(p - 998.4) / 1.5, 3)
+        if "sin_hour" not in full_feats:
+            full_feats["sin_hour"] = 0.0
+        if "cos_hour" not in full_feats:
+            full_feats["cos_hour"] = 1.0
+
+        row_df = pd.DataFrame([{col: full_feats.get(col, 0.0) for col in FEATURE_COLUMNS}])
         scaled = self.scaler.transform(row_df)
         shap_values = self.explainer.shap_values(scaled)[0]
 

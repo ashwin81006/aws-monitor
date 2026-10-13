@@ -16,30 +16,106 @@
                 StrokeThickness="1"
                 Padding="{OnIdiom Phone='14,10', Default='18,12'}"
                 StrokeShape="RoundRectangle 10">
-            <VerticalStackLayout Spacing="3">
-                <HorizontalStackLayout Spacing="8" VerticalOptions="Center">
-                    <Label Text="AWS Monitor"
-                           FontSize="{OnIdiom Phone=17, Default=19}"
-                           FontAttributes="Bold"
-                           TextColor="#38BDF8"
-                           VerticalOptions="Center" />
-                    <Border BackgroundColor="#0F3554"
-                            Stroke="#0284C7"
-                            StrokeThickness="1"
-                            Padding="8,2"
-                            StrokeShape="RoundRectangle 4"
-                            VerticalOptions="Center">
-                        <Label Text="Station QC"
-                               FontSize="9"
-                               FontAttributes="Bold"
-                               TextColor="#38BDF8" />
-                    </Border>
-                </HorizontalStackLayout>
-                <Label Text="{Binding LocationText}"
-                       FontSize="11"
-                       TextColor="#94A3B8"
-                       LineBreakMode="TailTruncation"
-                       MaxLines="1" />
+            <VerticalStackLayout Spacing="8">
+                <Grid ColumnDefinitions="*,Auto" VerticalOptions="Center">
+                    <VerticalStackLayout Spacing="3">
+                        <HorizontalStackLayout Spacing="8" VerticalOptions="Center">
+                            <Label Text="AWS Monitor"
+                                   FontSize="{OnIdiom Phone=17, Default=19}"
+                                   FontAttributes="Bold"
+                                   TextColor="#38BDF8"
+                                   VerticalOptions="Center" />
+                            <Border BackgroundColor="#0F3554"
+                                    Stroke="#0284C7"
+                                    StrokeThickness="1"
+                                    Padding="8,2"
+                                    StrokeShape="RoundRectangle 4"
+                                    VerticalOptions="Center">
+                                <Label Text="Station QC"
+                                       FontSize="9"
+                                       FontAttributes="Bold"
+                                       TextColor="#38BDF8" />
+                            </Border>
+                        </HorizontalStackLayout>
+                        <Label Text="{Binding LocationText}"
+                               FontSize="11"
+                               TextColor="#94A3B8"
+                               LineBreakMode="TailTruncation"
+                               MaxLines="1" />
+                    </VerticalStackLayout>
+
+                    <HorizontalStackLayout Grid.Column="1" Spacing="8" VerticalOptions="Center">
+                        <Border BackgroundColor="#0F172A"
+                                Stroke="{Binding ConnectionStatusColor}"
+                                StrokeThickness="1"
+                                Padding="10,4"
+                                StrokeShape="RoundRectangle 6"
+                                VerticalOptions="Center">
+                            <Label Text="{Binding ConnectionStatusText}"
+                                   FontSize="10"
+                                   FontAttributes="Bold"
+                                   TextColor="{Binding ConnectionStatusColor}" />
+                        </Border>
+                        <Button Text="Server"
+                                Command="{Binding ToggleServerSettingsCommand}"
+                                BackgroundColor="#1E293B"
+                                TextColor="#94A3B8"
+                                FontSize="10"
+                                FontAttributes="Bold"
+                                CornerRadius="6"
+                                HeightRequest="30"
+                                Padding="10,0"
+                                VerticalOptions="Center" />
+                        <Button Text="Refresh"
+                                Command="{Binding RefreshAllCommand}"
+                                BackgroundColor="#1E293B"
+                                TextColor="#38BDF8"
+                                FontSize="10"
+                                FontAttributes="Bold"
+                                CornerRadius="6"
+                                HeightRequest="30"
+                                Padding="10,0"
+                                VerticalOptions="Center" />
+                    </HorizontalStackLayout>
+                </Grid>
+
+                <Border IsVisible="{Binding IsServerSettingsVisible}"
+                        BackgroundColor="#0F172A"
+                        Stroke="#334155"
+                        StrokeThickness="1"
+                        Padding="10,8"
+                        StrokeShape="RoundRectangle 8">
+                    <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8" VerticalOptions="Center">
+                        <Label Grid.Column="0" Text="API Server:" FontSize="11" TextColor="#94A3B8" VerticalOptions="Center" />
+                        <Entry Grid.Column="1"
+                               Text="{Binding ServerUrlInput}"
+                               TextColor="#F8FAFC"
+                               Placeholder="http://127.0.0.1:8000"
+                               PlaceholderColor="#64748B"
+                               FontSize="11"
+                               HeightRequest="32"
+                               VerticalOptions="Center" />
+                        <Button Grid.Column="2"
+                                Text="Localhost"
+                                Command="{Binding UseLocalhostCommand}"
+                                BackgroundColor="#1E293B"
+                                TextColor="#38BDF8"
+                                FontSize="10"
+                                HeightRequest="30"
+                                Padding="8,0"
+                                CornerRadius="4" />
+                        <Button Grid.Column="3"
+                                Text="Connect"
+                                Command="{Binding SaveServerUrlCommand}"
+                                BackgroundColor="#0284C7"
+                                TextColor="#FFFFFF"
+                                FontSize="10"
+                                FontAttributes="Bold"
+                                HeightRequest="30"
+                                Padding="12,0"
+                                CornerRadius="4" />
+                    </Grid>
+                </Border>
             </VerticalStackLayout>
         </Border>
 
@@ -290,6 +366,9 @@
                                     <BindableLayout.ItemTemplate>
                                         <DataTemplate x:DataType="models:AnomalyEvent">
                                             <Border BackgroundColor="#0F172A" Stroke="#1E293B" Padding="12,10" StrokeShape="RoundRectangle 8">
+                                                <Border.GestureRecognizers>
+                                                    <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type vm:MainViewModel}}, Path=SelectEventCommand}" CommandParameter="{Binding .}" />
+                                                </Border.GestureRecognizers>
                                                 <VerticalStackLayout Spacing="5">
                                                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
                                                         <Label Text="{Binding RootCause}" FontSize="11" FontAttributes="Bold" TextColor="#F8FAFC" VerticalOptions="Center" />
@@ -309,6 +388,26 @@
                                         </DataTemplate>
                                     </BindableLayout.ItemTemplate>
                                 </VerticalStackLayout>
+
+                                <Border BackgroundColor="#0C2138" Stroke="#0284C7" Padding="14,12" StrokeShape="RoundRectangle 8" Margin="0,8,0,0">
+                                    <VerticalStackLayout Spacing="6">
+                                        <Grid ColumnDefinitions="*,Auto" VerticalOptions="Center">
+                                            <Label Text="SELECTED INCIDENT DEEP DIVE" FontSize="10" FontAttributes="Bold" TextColor="#38BDF8" VerticalOptions="Center" />
+                                            <Border Grid.Column="1" BackgroundColor="#0284C7" Padding="6,2" StrokeShape="RoundRectangle 4">
+                                                <Label Text="{Binding SelectedEventDurationText, StringFormat='Duration: {0}'}" FontSize="9" FontAttributes="Bold" TextColor="White" />
+                                            </Border>
+                                        </Grid>
+                                        <Label Text="{Binding SelectedEventDetailExplanation}" FontSize="11" TextColor="#F1F5F9" LineBreakMode="WordWrap" />
+                                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6" Margin="0,2,0,0">
+                                            <Label Text="Rule Flags:" FontSize="9" FontAttributes="Bold" TextColor="#94A3B8" />
+                                            <Label Grid.Column="1" Text="{Binding SelectedEventRuleFlags}" FontSize="9" TextColor="#FBBF24" LineBreakMode="WordWrap" />
+                                        </Grid>
+                                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6">
+                                            <Label Text="Affected Sensors:" FontSize="9" FontAttributes="Bold" TextColor="#94A3B8" />
+                                            <Label Grid.Column="1" Text="{Binding SelectedEventAffectedSensors}" FontSize="9" TextColor="#34D399" />
+                                        </Grid>
+                                    </VerticalStackLayout>
+                                </Border>
                             </VerticalStackLayout>
                         </Border>
                     </Grid>
@@ -454,6 +553,28 @@
                                             </Border>
                                         </Grid>
                                         <Label Text="{Binding ReconstructionDetailsText}" FontSize="11" TextColor="#F1F5F9" LineBreakMode="WordWrap" />
+                                    </VerticalStackLayout>
+                                </Border>
+
+                                <Border BackgroundColor="#0F172A" Stroke="#1E293B" Padding="12,10" StrokeShape="RoundRectangle 6">
+                                    <VerticalStackLayout Spacing="6">
+                                        <Label Text="LOCAL SHAP FEATURE IMPACT (TOP PREDICTORS)" FontSize="9" FontAttributes="Bold" TextColor="#38BDF8" />
+                                        <VerticalStackLayout Spacing="5" BindableLayout.ItemsSource="{Binding LocalShapList}">
+                                            <BindableLayout.ItemTemplate>
+                                                <DataTemplate x:DataType="models:ShapLocalFeatureImpact">
+                                                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6" VerticalOptions="Center">
+                                                        <VerticalStackLayout Spacing="1">
+                                                            <Label Text="{Binding FriendlyFeatureName}" FontSize="10" FontAttributes="Bold" TextColor="#E2E8F0" />
+                                                            <Label Text="{Binding Domain}" FontSize="8" TextColor="#64748B" />
+                                                        </VerticalStackLayout>
+                                                        <Border Grid.Column="1" BackgroundColor="#1E293B" Padding="6,2" StrokeShape="RoundRectangle 4" VerticalOptions="Center">
+                                                            <Label Text="{Binding Direction}" FontSize="8" FontAttributes="Bold" TextColor="{Binding DirectionColor}" />
+                                                        </Border>
+                                                        <Label Grid.Column="2" Text="{Binding AbsoluteImpact, StringFormat='{0:F3}'}" FontSize="10" FontAttributes="Bold" TextColor="#38BDF8" VerticalOptions="Center" />
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </BindableLayout.ItemTemplate>
+                                        </VerticalStackLayout>
                                     </VerticalStackLayout>
                                 </Border>
                             </VerticalStackLayout>

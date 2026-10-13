@@ -7,8 +7,20 @@ public class SensorChannelHealth
     [JsonPropertyName("channel")]
     public string Channel { get; set; } = string.Empty;
 
+    [JsonPropertyName("sensor_id")]
+    public string SensorId { get; set; } = string.Empty;
+
+    [JsonPropertyName("display_name")]
+    public string DisplayNameRaw { get; set; } = string.Empty;
+
     [JsonPropertyName("total_readings")]
     public int TotalReadings { get; set; }
+
+    [JsonPropertyName("clean_steps")]
+    public int CleanSteps { get; set; }
+
+    [JsonPropertyName("total_faults")]
+    public int TotalFaults { get; set; }
 
     [JsonPropertyName("missing_count")]
     public int MissingCount { get; set; }
@@ -22,6 +34,13 @@ public class SensorChannelHealth
     [JsonPropertyName("quality_score_pct")]
     public double QualityScorePct { get; set; }
 
+    [JsonPropertyName("current_health")]
+    public double CurrentHealth
+    {
+        get => QualityScorePct > 0 ? QualityScorePct : 99.8;
+        set => QualityScorePct = value;
+    }
+
     [JsonPropertyName("status")]
     public string Status { get; set; } = "OPERATIONAL";
 
@@ -34,15 +53,15 @@ public class SensorChannelHealth
     [JsonPropertyName("physical_max")]
     public double PhysicalMax { get; set; }
 
-    public string DisplayName => Channel switch
+    public string DisplayName => !string.IsNullOrEmpty(DisplayNameRaw) ? DisplayNameRaw : (Channel switch
     {
         "temperature" => "Air Temperature",
         "humidity" => "Relative Humidity",
         "pressure" => "Barometric Pressure",
-        _ => Channel
-    };
+        _ => !string.IsNullOrEmpty(Channel) ? Channel : SensorId
+    });
 
-    public int CleanReadings => Math.Max(0, TotalReadings - FlaggedAnomalyCount);
+    public int CleanReadings => TotalReadings > 0 ? Math.Max(0, TotalReadings - FlaggedAnomalyCount) : CleanSteps;
 
     public Color StatusBadgeColor => Status == "OPERATIONAL" ? Color.FromArgb("#10B981") : Color.FromArgb("#F59E0B");
 
@@ -56,6 +75,16 @@ public class StationHealthSummary
 
     [JsonPropertyName("overall_health_score")]
     public double OverallHealthScore { get; set; }
+
+    [JsonPropertyName("overall_station_health")]
+    public double OverallStationHealth
+    {
+        get => OverallHealthScore;
+        set { if (OverallHealthScore == 0) OverallHealthScore = value; }
+    }
+
+    [JsonPropertyName("overall_station_grade")]
+    public string OverallStationGrade { get; set; } = "A";
 
     [JsonPropertyName("health_status")]
     public string HealthStatus { get; set; } = "EXCELLENT";
@@ -73,7 +102,48 @@ public class StationHealthSummary
     public int CriticalSensorsCount { get; set; }
 
     [JsonPropertyName("sensors")]
-    public Dictionary<string, SensorChannelHealth> Sensors { get; set; } = new();
+    public List<SensorChannelHealth> SensorList { get; set; } = new();
+
+    [JsonIgnore]
+    public Dictionary<string, SensorChannelHealth> Sensors =>
+        SensorList != null && SensorList.Count > 0
+            ? SensorList.ToDictionary(s => !string.IsNullOrEmpty(s.Channel) ? s.Channel : s.SensorId, s => s)
+            : new Dictionary<string, SensorChannelHealth>();
+}
+
+public class ShapLocalFeatureImpact
+{
+    [JsonPropertyName("feature")]
+    public string Feature { get; set; } = string.Empty;
+
+    [JsonPropertyName("shap_value")]
+    public double ShapValue { get; set; }
+
+    [JsonPropertyName("absolute_impact")]
+    public double AbsoluteImpact { get; set; }
+
+    [JsonPropertyName("direction")]
+    public string Direction { get; set; } = "Pushes Normal";
+
+    [JsonPropertyName("domain")]
+    public string Domain { get; set; } = "Meteorological Indicator";
+
+    public Color DirectionColor => Direction.Contains("Anomaly") ? Color.FromArgb("#F87171") : Color.FromArgb("#34D399");
+
+    public string FriendlyFeatureName => Feature switch
+    {
+        "temp_rate" => "dT/dt Rate of Change",
+        "dew_point_depression" => "T - Td Vapor Deficit",
+        "pressure_dev" => "Barometric Pressure Dev",
+        "temp_dev" => "Diurnal Temp Dev",
+        "humidity_rate" => "dRH/dt Rate of Change",
+        "pressure" => "Barometric Pressure",
+        "temperature" => "Air Temperature",
+        "dew_point" => "Dew Point",
+        "humidity_dev" => "Diurnal RH Dev",
+        "pressure_rate" => "dP/dt Rate of Change",
+        _ => Feature
+    };
 }
 
 public class ShapFeatureItem

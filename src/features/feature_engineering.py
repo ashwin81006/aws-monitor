@@ -81,6 +81,22 @@ class StreamingFeatureExtractor:
         self.abs_diff_rh = deque(maxlen=window_size)
         self.abs_diff_p = deque(maxlen=window_size)
         self.last_ts: Optional[pd.Timestamp] = None
+        self.t_streak = 0
+        self.rh_streak = 0
+        self.p_streak = 0
+        self.ewma_t: Optional[float] = None
+        self.ewma_alpha = 0.25
+
+    def reset(self):
+        self.history.clear()
+        self.abs_diff_t.clear()
+        self.abs_diff_rh.clear()
+        self.abs_diff_p.clear()
+        self.last_ts = None
+        self.t_streak = 0
+        self.rh_streak = 0
+        self.p_streak = 0
+        self.ewma_t = None
 
     def push(self, temp: float, rh: float, press: float, timestamp: Optional[pd.Timestamp] = None) -> Dict[str, float]:
         ts = timestamp or pd.Timestamp.now()
@@ -91,6 +107,21 @@ class StreamingFeatureExtractor:
                 dt_steps = max(1.0, gap_sec / 1800.0)
 
         prev = self.history[-1] if self.history else None
+
+        if prev is not None:
+            self.t_streak = (self.t_streak + 1) if abs(temp - prev[0]) < 1e-4 else 0
+            self.rh_streak = (self.rh_streak + 1) if abs(rh - prev[1]) < 1e-4 else 0
+            self.p_streak = (self.p_streak + 1) if abs(press - prev[2]) < 1e-4 else 0
+        else:
+            self.t_streak = 0
+            self.rh_streak = 0
+            self.p_streak = 0
+
+        if self.ewma_t is None:
+            self.ewma_t = temp
+        else:
+            self.ewma_t = self.ewma_alpha * temp + (1.0 - self.ewma_alpha) * self.ewma_t
+
         self.history.append((temp, rh, press))
         self.last_ts = ts
 

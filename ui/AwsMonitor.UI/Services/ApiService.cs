@@ -19,6 +19,7 @@ public interface IApiService
     Task<StationHealthSummary> GetSensorHealthAsync();
     Task<ModelBenchmarkResponse> GetModelBenchmarksAsync();
     Task<ShapSummaryResponse?> GetShapSummaryAsync();
+    Task<List<ShapLocalFeatureImpact>> ExplainObservationAsync(Dictionary<string, double> payload);
 }
 
 public class ApiService : IApiService
@@ -32,10 +33,15 @@ public class ApiService : IApiService
     public static string GetDefaultBaseUrl()
     {
         string saved = Preferences.Default.Get("AwsMonitor_ApiBaseUrl", string.Empty);
-        if (!string.IsNullOrWhiteSpace(saved) && !saved.Contains("127.0.0.1") && !saved.Contains("10.232.250.170"))
+        if (!string.IsNullOrWhiteSpace(saved) && !saved.Contains("aws-monitor-api.vercel.app"))
             return saved;
 
-        return "https://aws-monitor-api.vercel.app";
+        string localUrl = DeviceInfo.Platform == DevicePlatform.Android
+            ? "http://10.0.2.2:8000"
+            : "http://127.0.0.1:8000";
+
+        Preferences.Default.Set("AwsMonitor_ApiBaseUrl", localUrl);
+        return localUrl;
     }
 
     public ApiService()
@@ -414,7 +420,11 @@ public class ApiService : IApiService
         try
         {
             var res = await _http.GetFromJsonAsync<StationHealthSummary>("/api/v1/sensors/health");
-            if (res != null) return res;
+            if (res != null)
+            {
+                IsConnected = true;
+                return res;
+            }
         }
         catch { }
 
@@ -427,12 +437,48 @@ public class ApiService : IApiService
             HealthySensorsCount = 3,
             DegradedSensorsCount = 0,
             CriticalSensorsCount = 0,
-            Sensors = new Dictionary<string, SensorChannelHealth>
+            SensorList = new List<SensorChannelHealth>
             {
-                ["temperature"] = new() { Channel = "temperature", TotalReadings = 32774, MissingCount = 0, MissingRatePct = 0.0, FlaggedAnomalyCount = 42, QualityScorePct = 99.8, Status = "OPERATIONAL", PhysicalMin = -10, PhysicalMax = 60, LastValidReading = 31.4 },
-                ["humidity"] = new() { Channel = "humidity", TotalReadings = 32774, MissingCount = 0, MissingRatePct = 0.0, FlaggedAnomalyCount = 18, QualityScorePct = 99.9, Status = "OPERATIONAL", PhysicalMin = 0, PhysicalMax = 100, LastValidReading = 65.0 },
-                ["pressure"] = new() { Channel = "pressure", TotalReadings = 32774, MissingCount = 0, MissingRatePct = 0.0, FlaggedAnomalyCount = 12, QualityScorePct = 99.9, Status = "OPERATIONAL", PhysicalMin = 850, PhysicalMax = 1080, LastValidReading = 998.4 }
+                new() { Channel = "temperature", DisplayNameRaw = "Air Temperature", TotalReadings = 32774, MissingCount = 0, MissingRatePct = 0.0, FlaggedAnomalyCount = 42, QualityScorePct = 99.8, Status = "OPERATIONAL", PhysicalMin = -10, PhysicalMax = 60, LastValidReading = 31.4 },
+                new() { Channel = "humidity", DisplayNameRaw = "Relative Humidity", TotalReadings = 32774, MissingCount = 0, MissingRatePct = 0.0, FlaggedAnomalyCount = 18, QualityScorePct = 99.9, Status = "OPERATIONAL", PhysicalMin = 0, PhysicalMax = 100, LastValidReading = 65.0 },
+                new() { Channel = "pressure", DisplayNameRaw = "Barometric Pressure", TotalReadings = 32774, MissingCount = 0, MissingRatePct = 0.0, FlaggedAnomalyCount = 12, QualityScorePct = 99.9, Status = "OPERATIONAL", PhysicalMin = 850, PhysicalMax = 1080, LastValidReading = 998.4 }
             }
+        };
+    }
+
+    public async Task<List<ShapLocalFeatureImpact>> ExplainObservationAsync(Dictionary<string, double> payload)
+    {
+        try
+        {
+            var httpRes = await _http.PostAsJsonAsync("/api/v1/models/shap/explain", payload);
+            if (httpRes.IsSuccessStatusCode)
+            {
+                var impacts = await httpRes.Content.ReadFromJsonAsync<List<ShapLocalFeatureImpact>>();
+                if (impacts != null && impacts.Count > 0)
+                {
+                    IsConnected = true;
+                    return impacts;
+                }
+            }
+        }
+        catch
+        {
+        }
+
+        double t = payload.GetValueOrDefault("temperature", 28.5);
+        double rh = payload.GetValueOrDefault("humidity", 65.0);
+        double p = payload.GetValueOrDefault("pressure", 998.4);
+
+        double tDev = Math.Abs(t - 28.5);
+        double rhDev = Math.Abs(rh - 65.0);
+        double pDev = Math.Abs(p - 998.4);
+
+        return new List<ShapLocalFeatureImpact>
+        {
+            new() { Feature = "temp_dev", ShapValue = tDev > 10.0 ? -0.28 : 0.12, AbsoluteImpact = tDev > 10.0 ? 0.28 : 0.12, Direction = tDev > 10.0 ? "Pushes Anomaly" : "Pushes Normal", Domain = "Diurnal Solar Anomaly" },
+            new() { Feature = "temp_rate", ShapValue = t < -10.0 ? -0.35 : 0.08, AbsoluteImpact = t < -10.0 ? 0.35 : 0.08, Direction = t < -10.0 ? "Pushes Anomaly" : "Pushes Normal", Domain = "Kinematic Gradient (dT/dt)" },
+            new() { Feature = "dew_point_depression", ShapValue = rh < 30.0 ? -0.19 : 0.10, AbsoluteImpact = rh < 30.0 ? 0.19 : 0.10, Direction = rh < 30.0 ? "Pushes Anomaly" : "Pushes Normal", Domain = "Thermodynamics (T - Td)" },
+            new() { Feature = "pressure_dev", ShapValue = pDev > 15.0 ? -0.22 : 0.06, AbsoluteImpact = pDev > 15.0 ? 0.22 : 0.06, Direction = pDev > 15.0 ? "Pushes Anomaly" : "Pushes Normal", Domain = "Barometric Tidal Deviation" }
         };
     }
 

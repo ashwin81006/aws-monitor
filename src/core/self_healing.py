@@ -5,21 +5,27 @@ MAGNUS_A = 17.27
 MAGNUS_B = 237.7
 
 
-def estimate_temperature_from_rh(rh: float, recent_dew_point: float) -> float:
-    rh_clipped = np.clip(rh, 5.0, 100.0)
+def estimate_temperature_from_rh(rh: float, recent_dew_point: float) -> Tuple[float, float, str]:
+    rh_clipped = float(np.clip(rh, 5.0, 100.0))
     alpha_dp = (MAGNUS_A * recent_dew_point) / (MAGNUS_B + recent_dew_point)
     gamma = alpha_dp - np.log(rh_clipped / 100.0)
     if (MAGNUS_A - gamma) == 0:
-        return recent_dew_point
+        return recent_dew_point, 2.5, "Degenerate vapor limit"
     est_temp = (MAGNUS_B * gamma) / (MAGNUS_A - gamma)
-    return float(np.clip(est_temp, 5.0, 50.0))
+    est_clamped = float(np.clip(est_temp, 5.0, 50.0))
+    uncertainty = 0.8 if 20.0 <= rh_clipped <= 90.0 else 1.5
+    evidence = f"Magnus psychrometric inversion using conserved dew point ({recent_dew_point:.1f}°C) and valid relative humidity ({rh_clipped:.1f}%)."
+    return round(est_clamped, 2), uncertainty, evidence
 
 
-def estimate_rh_from_temperature(temp: float, recent_dew_point: float) -> float:
+def estimate_rh_from_temperature(temp: float, recent_dew_point: float) -> Tuple[float, float, str]:
     alpha_dp = (MAGNUS_A * recent_dew_point) / (MAGNUS_B + recent_dew_point)
     alpha_t = (MAGNUS_A * temp) / (MAGNUS_B + temp)
     rh_est = 100.0 * np.exp(alpha_dp - alpha_t)
-    return float(np.clip(rh_est, 10.0, 100.0))
+    rh_clamped = float(np.clip(rh_est, 5.0, 100.0))
+    uncertainty = 3.5
+    evidence = f"Magnus psychrometric inversion using conserved dew point ({recent_dew_point:.1f}°C) and valid air temperature ({temp:.1f}°C)."
+    return round(rh_clamped, 1), uncertainty, evidence
 
 
 def heal_observation(
@@ -39,8 +45,13 @@ def heal_observation(
     med_rh = float(np.median(recent_rhs)) if recent_rhs else 65.0
     med_p = float(np.median(recent_presses)) if recent_presses else 985.0
 
-    alpha = ((MAGNUS_A * med_t) / (MAGNUS_B + med_t)) + np.log(max(med_rh, 1.0) / 100.0)
-    recent_dp = float((MAGNUS_B * alpha) / (MAGNUS_A - alpha))
+    recent_dp_valid = False
+    recent_dp = 20.0
+    if len(recent_temps) >= 2 and len(recent_rhs) >= 2:
+        alpha = ((MAGNUS_A * med_t) / (MAGNUS_B + med_t)) + np.log(max(med_rh, 1.0) / 100.0)
+        recent_dp = float((MAGNUS_B * alpha) / (MAGNUS_A - alpha))
+        if 0.0 <= recent_dp <= 35.0:
+            recent_dp_valid = True
 
     healed_t = temp
     healed_rh = rh
@@ -48,55 +59,83 @@ def heal_observation(
     is_healed = False
     healing_method = "NONE"
     healed_channel = "NONE"
+    uncertainty: Optional[float] = None
+    evidence_desc = "No reconstruction required. Observations conform to physical boundaries."
+    reconstruction_grade = "VALIDATED_PHYSICAL"
 
     temp_is_bad = (
         temp is None or np.isnan(temp) or
         temp > 55.0 or temp < 5.0 or
-        culprit_sensor == "Temperature" or
-        "TEMP" in fault_type.upper()
+        culprit_sensor in ["Temperature", "all"] or
+        "TEMP" in fault_type.upper() or
+        "SPIKE" in fault_type.upper() or
+        "FROZEN" in fault_type.upper() or
+        "COMMUNICATION" in fault_type.upper()
     )
-    if temp_is_bad:
-        if rh is not None and not np.isnan(rh) and 10.0 <= rh <= 100.0:
-            healed_t = round(estimate_temperature_from_rh(rh, recent_dp), 2)
-            healing_method = "THERMODYNAMIC_MAGNUS_INVERSION"
-        else:
-            healed_t = round(med_t, 2)
-            healing_method = "AUTOREGRESSIVE_MEDIAN"
-        is_healed = True
-        healed_channel = "Temperature"
 
     rh_is_bad = (
         rh is None or np.isnan(rh) or
         rh < 5.0 or rh > 100.0 or
-        culprit_sensor == "Humidity" or
-        "HUMIDITY" in fault_type.upper()
+        culprit_sensor in ["Humidity", "all"] or
+        "HUMIDITY" in fault_type.upper() or
+        "COMMUNICATION" in fault_type.upper()
     )
-    if rh_is_bad:
-        if healed_t is not None and not np.isnan(healed_t):
-            healed_rh = round(estimate_rh_from_temperature(healed_t, recent_dp), 2)
-            healing_method = "THERMODYNAMIC_MAGNUS_INVERSION"
-        else:
-            healed_rh = round(med_rh, 2)
-            healing_method = "AUTOREGRESSIVE_MEDIAN"
-        is_healed = True
-        healed_channel = "Humidity"
 
     press_is_bad = (
         press is None or np.isnan(press) or
         press < 890.0 or press > 1050.0 or
-        culprit_sensor == "Pressure" or
-        "PRESSURE" in fault_type.upper()
+        culprit_sensor in ["Pressure", "all"] or
+        "PRESSURE" in fault_type.upper() or
+        "COMMUNICATION" in fault_type.upper()
     )
-    if press_is_bad:
-        healed_p = round(med_p, 2)
-        healing_method = "AUTOREGRESSIVE_MEDIAN"
+
+    if temp_is_bad:
         is_healed = True
-        healed_channel = "Pressure"
+        healed_channel = "Temperature"
+        if not rh_is_bad and rh is not None and recent_dp_valid:
+            healed_t, uncertainty, evidence_desc = estimate_temperature_from_rh(rh, recent_dp)
+            healing_method = "THERMODYNAMIC_MAGNUS_INVERSION"
+            reconstruction_grade = "HIGH_CONFIDENCE_PHYSICAL"
+        else:
+            healed_t = round(med_t, 2)
+            uncertainty = 1.8
+            healing_method = "AUTOREGRESSIVE_MEDIAN"
+            reconstruction_grade = "MODERATE_CONFIDENCE_AUTOREGRESSIVE"
+            evidence_desc = f"Channel RH is compromised or dew point is unverified. Restored via robust rolling median ({med_t:.1f}°C) over window of {len(recent_temps)} observations."
+
+    if rh_is_bad:
+        is_healed = True
+        healed_channel = "Humidity" if not temp_is_bad else "Multi-Channel (T + RH)"
+        if not temp_is_bad and temp is not None and recent_dp_valid:
+            healed_rh, uncertainty_rh, evidence_rh = estimate_rh_from_temperature(temp, recent_dp)
+            healing_method = "THERMODYNAMIC_MAGNUS_INVERSION"
+            reconstruction_grade = "HIGH_CONFIDENCE_PHYSICAL"
+            evidence_desc = evidence_rh
+            uncertainty = uncertainty_rh if uncertainty is None else max(uncertainty, uncertainty_rh)
+        else:
+            healed_rh = round(med_rh, 1)
+            healing_method = "AUTOREGRESSIVE_MEDIAN"
+            reconstruction_grade = "MODERATE_CONFIDENCE_AUTOREGRESSIVE"
+            uncertainty = 5.0 if uncertainty is None else max(uncertainty, 5.0)
+            evidence_desc = f"Restored via rolling median ({med_rh:.1f}%) over window of {len(recent_rhs)} observations."
+
+    if press_is_bad:
+        is_healed = True
+        healed_channel = "Pressure" if healed_channel == "NONE" else f"{healed_channel} + Pressure"
+        healed_p = round(med_p, 1)
+        healing_method = "AUTOREGRESSIVE_MEDIAN" if healing_method == "NONE" else f"{healing_method} + BAROMETRIC_MEDIAN"
+        reconstruction_grade = "MODERATE_CONFIDENCE_AUTOREGRESSIVE"
+        uncertainty = 0.8 if uncertainty is None else max(uncertainty, 0.8)
+        evidence_desc = f"Barometric pressure restored to local station elevation baseline ({med_p:.1f} hPa)."
 
     return {
         "is_healed": is_healed,
         "healing_method": healing_method,
         "healed_channel": healed_channel,
+        "fault_type": fault_type,
+        "reconstruction_grade": reconstruction_grade,
+        "uncertainty_estimate": uncertainty,
+        "supporting_evidence": evidence_desc,
         "corrected_temperature": healed_t,
         "corrected_humidity": healed_rh,
         "corrected_pressure": healed_p,

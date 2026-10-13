@@ -187,6 +187,18 @@ public class AnomalyEventsResponse
     [JsonPropertyName("total_events")]
     public int TotalEvents { get; set; }
 
+    [JsonPropertyName("limit")]
+    public int Limit { get; set; }
+
+    [JsonPropertyName("offset")]
+    public int Offset { get; set; }
+
+    [JsonPropertyName("counts_by_category")]
+    public Dictionary<string, int>? CountsByCategory { get; set; }
+
+    [JsonPropertyName("counts_by_severity")]
+    public Dictionary<string, int>? CountsBySeverity { get; set; }
+
     [JsonPropertyName("filtered_events")]
     public int FilteredEvents { get; set; }
 
@@ -205,17 +217,53 @@ public class AnomalyDetailResponse
     [JsonPropertyName("end_time")]
     public string EndTime { get; set; } = string.Empty;
 
+    [JsonPropertyName("duration_minutes")]
+    public double DurationMinutes { get; set; }
+
+    [JsonPropertyName("observations")]
+    public int Observations { get; set; }
+
     [JsonPropertyName("observations_count")]
-    public int ObservationsCount { get; set; }
+    public int ObservationsCountRaw { get; set; }
+
+    private int? _observationsCount;
+    public int ObservationsCount
+    {
+        get => _observationsCount ?? (Observations > 0 ? Observations : (ObservationsCountRaw > 0 ? ObservationsCountRaw : 1));
+        set => _observationsCount = value;
+    }
 
     [JsonPropertyName("peak_fused_score")]
     public double PeakFusedScore { get; set; }
 
+    [JsonPropertyName("mean_fused_score")]
+    public double MeanFusedScore { get; set; }
+
+    [JsonPropertyName("candidate_class")]
+    public string? CandidateClass { get; set; }
+
     [JsonPropertyName("classification")]
-    public string Classification { get; set; } = string.Empty;
+    public string? ClassificationRaw { get; set; }
+
+    private string? _classification;
+    public string Classification
+    {
+        get => !string.IsNullOrEmpty(_classification) ? _classification : (!string.IsNullOrEmpty(ClassificationRaw) ? ClassificationRaw : (!string.IsNullOrEmpty(CandidateClass) ? CandidateClass : "PROBABLE_SENSOR_FAULT"));
+        set => _classification = value;
+    }
+
+    [JsonPropertyName("probable_root_cause")]
+    public string? ProbableRootCause { get; set; }
 
     [JsonPropertyName("root_cause")]
-    public string RootCause { get; set; } = string.Empty;
+    public string? RootCauseRaw { get; set; }
+
+    private string? _rootCause;
+    public string RootCause
+    {
+        get => !string.IsNullOrEmpty(_rootCause) ? _rootCause : (!string.IsNullOrEmpty(RootCauseRaw) ? RootCauseRaw : (!string.IsNullOrEmpty(ProbableRootCause) ? ProbableRootCause : "Sensor Anomaly"));
+        set => _rootCause = value;
+    }
 
     [JsonPropertyName("affected_sensors")]
     public List<string> AffectedSensors { get; set; } = new();
@@ -224,7 +272,12 @@ public class AnomalyDetailResponse
     public List<string> RuleFlags { get; set; } = new();
 
     [JsonPropertyName("description")]
-    public string Description { get; set; } = string.Empty;
+    public string? Description { get; set; }
+
+    [JsonPropertyName("explanation")]
+    public string? Explanation { get; set; }
+
+    public string ResolvedExplanation => !string.IsNullOrEmpty(Explanation) ? Explanation : (!string.IsNullOrEmpty(Description) ? Description : "Identified sensor inconsistency.");
 
     [JsonPropertyName("records")]
     public List<TelemetryPoint> Records { get; set; } = new();
