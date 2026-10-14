@@ -543,6 +543,7 @@ public partial class MainViewModel : ObservableObject
         {
             new Axis
             {
+                MinLimit = 0,
                 LabelsPaint = new SolidColorPaint(new SKColor(148, 163, 184)),
                 TextSize = 10,
                 SeparatorsPaint = new SolidColorPaint(new SKColor(51, 65, 85, 60))
@@ -1067,8 +1068,10 @@ public partial class MainViewModel : ObservableObject
                 {
                     "PROBABLE_SENSOR_FAULT" => "Probable Sensor Fault",
                     "UNCERTAIN_WARNING" => "Uncertain Warning",
-                    "BENIGN_EXTREME" => "Weather Extreme",
+                    "BENIGN_EXTREME" => "Weather Extremes",
                     "SENSOR_SPIKE" => "ADC Sensor Spikes",
+                    "GROUND_FAULT" => "RTD Ground Faults",
+                    "HUMIDITY_COLLAPSE" => "Humidity Collapse",
                     "FROZEN_SENSOR" => "Sensor Flatlines",
                     "DRIFT_OR_CALIBRATION" => "Calibration Drift",
                     "PRESSURE_TRANSIENT" => "Barometric Steps",
@@ -1133,6 +1136,7 @@ public partial class MainViewModel : ObservableObject
             {
                 new Axis
                 {
+                    MinLimit = 0,
                     LabelsPaint = new SolidColorPaint(new SKColor(148, 163, 184)),
                     TextSize = 10,
                     SeparatorsPaint = new SolidColorPaint(new SKColor(51, 65, 85, 60))
@@ -1254,25 +1258,32 @@ public partial class MainViewModel : ObservableObject
 
             foreach (var m in modelSource)
             {
-                bool isProd = m.IsSelectedProductionModel || (!string.IsNullOrEmpty(m.ModelName) && m.ModelName.Contains("Forest"));
+                bool isProd = m.IsSelectedProductionModel || (!string.IsNullOrEmpty(m.ModelName) && m.ModelName.Contains("Ensemble"));
                 BenchmarkList.Add(new ModelBenchmarkItem
                 {
                     ModelName = m.ModelName,
                     Role = m.DisplayRole,
+                    EventF1 = m.DisplayEventF1,
+                    RowF1 = m.DisplayRowF1,
+                    Precision = m.DisplayPrecision,
+                    Recall = m.DisplayRecall,
+                    FalsePositiveRate = m.DisplayFpr,
+                    DetectionDelaySteps = m.DetectionDelaySteps ?? 0.0,
                     InferenceThroughputObsSec = m.DisplayThroughput,
                     ModelDiskSizeKb = m.DisplayDiskSize,
                     FitTimeSeconds = m.FitTimeSeconds,
                     OutlierRatePct = m.OutlierRatePct > 0 ? m.OutlierRatePct : 5.0,
                     IsSelectedProductionModel = isProd,
-                    Strengths = !string.IsNullOrEmpty(m.Strengths) ? m.Strengths : (isProd ? "High inference throughput with native TreeSHAP explainability." : (m.ModelName.Contains("SVM") ? "Compact margin boundary (22 KB)." : "Density-based local outlier detection.")),
-                    Verdict = !string.IsNullOrEmpty(m.Verdict) ? m.Verdict : (isProd ? "Selected for Production" : "Baseline comparison")
+                    Strengths = !string.IsNullOrEmpty(m.Strengths) ? m.Strengths : (isProd ? "Superior multi-step drift recall (+4.53% Event F1 over baseline) with 0.0% weather extreme false alarms." : (m.ModelName.Contains("SVM") ? "Compact margin boundary (22 KB)." : "Density-based local outlier detection.")),
+                    Verdict = !string.IsNullOrEmpty(m.Verdict) ? m.Verdict : (isProd ? "Selected for Production (Optimal F1-Score)" : "Baseline comparison")
                 });
             }
 
             var throughputs = modelSource.Select(m => m.DisplayThroughput).Reverse().ToArray();
             var modelLabels = modelSource.Select(m => m.ModelName switch
             {
-                "Isolation Forest" => "Isolation Forest (Prod)",
+                "Calibrated Score Fusion Ensemble" => "Calibrated Ensemble (Prod)",
+                "Isolation Forest" => "Isolation Forest (Baseline)",
                 "One-Class SVM" => "SVM (Margin Boundary)",
                 "Local Outlier Factor" => "LOF (Density Outlier)",
                 _ => m.ModelName

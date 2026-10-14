@@ -75,10 +75,22 @@ def preprocess_data(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
         flagged["humidity"].isna()
     ).astype(int)
 
+    p_diff = flagged["pressure"].diff().abs().fillna(0.0)
+    p_frozen = (
+        (flagged["pressure"] == flagged["pressure"].shift(1)) &
+        (flagged["pressure"] == flagged["pressure"].shift(2)) &
+        (flagged["pressure"] == flagged["pressure"].shift(3))
+    ).fillna(False)
+
+    flagged["is_pressure_step"] = (p_diff > 6.0).astype(int)
+    flagged["is_pressure_frozen"] = p_frozen.astype(int)
+
     flagged["is_pressure_invalid"] = (
         (flagged["pressure"] < PRESSURE_MIN_VALID) |
         (flagged["pressure"] > PRESSURE_MAX_VALID) |
-        flagged["pressure"].isna()
+        flagged["pressure"].isna() |
+        (flagged["is_pressure_step"] == 1) |
+        (flagged["is_pressure_frozen"] == 1)
     ).astype(int)
 
     flagged["is_hardware_fault"] = (

@@ -493,13 +493,14 @@ public class ApiService : IApiService
 
         return new ModelBenchmarkResponse
         {
-            ComparisonMetric = "Evaluation Throughput (obs/sec) & Model Footprint",
-            PrimaryModel = "Isolation Forest",
+            ComparisonMetric = "Evaluation F1-Score & Throughput (obs/sec)",
+            PrimaryModel = "Calibrated Score Fusion Ensemble",
             Models = new List<ModelBenchmarkItem>
             {
-                new() { ModelName = "Isolation Forest", Role = "Production Ensemble", TrainingSamples = 22941, EvalSamples = 9833, FitTimeSeconds = 0.35, InferenceThroughputObsSec = 188667.0, ModelDiskSizeKb = 1082.0, OutlierRatePct = 5.0, IsSelectedProductionModel = true },
-                new() { ModelName = "One-Class SVM", Role = "Margin Boundary Detector", TrainingSamples = 22941, EvalSamples = 9833, FitTimeSeconds = 1.45, InferenceThroughputObsSec = 58470.0, ModelDiskSizeKb = 22.4, OutlierRatePct = 5.0, IsSelectedProductionModel = false },
-                new() { ModelName = "Local Outlier Factor", Role = "Density Outlier Profiler", TrainingSamples = 22941, EvalSamples = 9833, FitTimeSeconds = 0.85, InferenceThroughputObsSec = 14278.0, ModelDiskSizeKb = 1467.3, OutlierRatePct = 5.0, IsSelectedProductionModel = false }
+                new() { ModelName = "Calibrated Score Fusion Ensemble", Role = "Selected Production Ensemble (IF 50% + SVM 30% + LOF 20%)", EventF1 = 0.7159, RowF1 = 0.5164, Precision = 0.8846, Recall = 0.5636, FalsePositiveRate = 0.012, TrainingSamples = 22941, EvalSamples = 9833, FitTimeSeconds = 2.65, InferenceThroughputObsSec = 130100.0, ModelDiskSizeKb = 2571.7, OutlierRatePct = 5.0, IsSelectedProductionModel = true, Strengths = "Superior multi-step drift recall (+4.53% Event F1 over baseline) with 0.0% weather extreme false alarms." },
+                new() { ModelName = "Isolation Forest", Role = "Primary Detector Baseline (13 Features)", EventF1 = 0.6706, RowF1 = 0.4527, Precision = 0.8804, Recall = 0.5179, FalsePositiveRate = 0.012, TrainingSamples = 22941, EvalSamples = 9833, FitTimeSeconds = 0.05, InferenceThroughputObsSec = 180767.0, ModelDiskSizeKb = 1082.0, OutlierRatePct = 5.0, IsSelectedProductionModel = false, Strengths = "Fastest single-model throughput with native TreeSHAP explainability." },
+                new() { ModelName = "One-Class SVM", Role = "Margin Boundary Detector Baseline", EventF1 = 0.6995, RowF1 = 0.5201, Precision = 0.8788, Recall = 0.5536, FalsePositiveRate = 0.015, TrainingSamples = 22941, EvalSamples = 9833, FitTimeSeconds = 0.17, InferenceThroughputObsSec = 58721.0, ModelDiskSizeKb = 22.4, OutlierRatePct = 5.0, IsSelectedProductionModel = false, Strengths = "Ultra-compact margin boundary file (22 KB)." },
+                new() { ModelName = "Local Outlier Factor", Role = "Density Outlier Profiler Baseline", EventF1 = 0.6701, RowF1 = 0.5179, Precision = 0.8667, Recall = 0.5179, FalsePositiveRate = 0.017, TrainingSamples = 22941, EvalSamples = 9833, FitTimeSeconds = 0.82, InferenceThroughputObsSec = 11924.0, ModelDiskSizeKb = 1467.3, OutlierRatePct = 5.0, IsSelectedProductionModel = false, Strengths = "Density-based local outlier detection in dense observation clusters." }
             }
         };
     }
