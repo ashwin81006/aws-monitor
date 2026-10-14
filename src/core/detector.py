@@ -12,7 +12,6 @@ from src.features.feature_engineering import StreamingFeatureExtractor, FEATURE_
 from src.core.self_healing import heal_observation
 
 MODELS_DIR = os.path.join(PROJECT_ROOT, "models")
-u
 
 class AWSUnifiedDetector:
     def __init__(self, mode: str = "calibrated_ensemble"):
