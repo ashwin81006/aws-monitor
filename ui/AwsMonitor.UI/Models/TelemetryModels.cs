@@ -100,26 +100,8 @@ public class TelemetryPoint
     [JsonPropertyName("humidity")]
     public double? Humidity { get; set; }
 
-    public double ResolvedTemperature => Temperature ?? Temp2m ?? 31.4;
-    public double ResolvedHumidity => Humidity ?? Rh2m ?? 65.0;
-
-    [JsonPropertyName("temp_2m")]
-    public double? Temp2m { get; set; }
-
-    [JsonPropertyName("temp_4m")]
-    public double? Temp4m { get; set; }
-
-    [JsonPropertyName("temp_8m")]
-    public double? Temp8m { get; set; }
-
-    [JsonPropertyName("rh_2m")]
-    public double? Rh2m { get; set; }
-
-    [JsonPropertyName("rh_4m")]
-    public double? Rh4m { get; set; }
-
-    [JsonPropertyName("rh_8m")]
-    public double? Rh8m { get; set; }
+    public double ResolvedTemperature => Temperature ?? 31.4;
+    public double ResolvedHumidity => Humidity ?? 65.0;
 
     [JsonPropertyName("pressure")]
     public double? Pressure { get; set; }

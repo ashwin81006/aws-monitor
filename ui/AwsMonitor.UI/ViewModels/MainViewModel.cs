@@ -209,14 +209,6 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     public partial double TestTemperature { get; set; } = 31.4;
 
-    [ObservableProperty]
-    public partial double TestTemp2m { get; set; } = 31.4;
-
-    [ObservableProperty]
-    public partial double TestTemp4m { get; set; } = 31.1;
-
-    [ObservableProperty]
-    public partial double TestTemp8m { get; set; } = 30.8;
 
     [ObservableProperty]
     public partial double TestHumidity { get; set; } = 65.0;
@@ -366,12 +358,8 @@ public partial class MainViewModel : ObservableObject
             pts.Add(new TelemetryPoint
             {
                 Timestamp = dt.ToString("yyyy-MM-dd HH:mm"),
-                Temp2m = Math.Round(t2, 1),
-                Temp4m = Math.Round(t4, 1),
-                Temp8m = Math.Round(t8, 1),
-                Rh2m = Math.Round(rh2, 1),
-                Rh4m = Math.Round(rh2 + 1.0, 1),
-                Rh8m = Math.Round(rh2 + 2.0, 1),
+                Temperature = Math.Round(t2, 1),
+                Humidity = Math.Round(rh2, 1),
                 Pressure = Math.Round(press, 1),
                 BatteryVoltage = Math.Round(batt, 2),
                 Rainfall = 0.0,
@@ -390,8 +378,8 @@ public partial class MainViewModel : ObservableObject
                 RootCause = "SENSOR_SPIKE",
                 EventClassification = "PROBABLE_SENSOR_FAULT",
                 PeakFusedScore = 0.985,
-                Description = "Transient ADC reading jump exceeding sensor gradient consistency across the 4m tower level.",
-                AffectedSensors = new List<string> { "temp_4m" }
+                Description = "Transient ADC reading spike exceeding physical temperature limits.",
+                AffectedSensors = new List<string> { "temperature" }
             });
             EventsList.Add(new AnomalyEvent
             {
@@ -1329,9 +1317,6 @@ public partial class MainViewModel : ObservableObject
     public void LoadPresetNormal()
     {
         TestTemperature = 31.4;
-        TestTemp2m = 31.4;
-        TestTemp4m = 31.1;
-        TestTemp8m = 30.8;
         TestHumidity = 65.0;
         TestPressure = 998.4;
         TestBattery = 13.2;
@@ -1344,9 +1329,6 @@ public partial class MainViewModel : ObservableObject
     public void LoadPresetSpike()
     {
         TestTemperature = -33.4;
-        TestTemp2m = 31.2;
-        TestTemp4m = -33.4;
-        TestTemp8m = 30.7;
         TestHumidity = 65.0;
         TestPressure = 998.4;
         TestBattery = 13.0;
@@ -1359,9 +1341,6 @@ public partial class MainViewModel : ObservableObject
     public void LoadPresetFreeze()
     {
         TestTemperature = 28.5;
-        TestTemp2m = 28.5;
-        TestTemp4m = 28.5;
-        TestTemp8m = 28.5;
         TestHumidity = 65.0;
         TestPressure = 998.4;
         TestBattery = 12.8;
@@ -1374,9 +1353,6 @@ public partial class MainViewModel : ObservableObject
     public void LoadPresetHeatwave()
     {
         TestTemperature = 46.5;
-        TestTemp2m = 46.5;
-        TestTemp4m = 46.2;
-        TestTemp8m = 45.9;
         TestHumidity = 22.0;
         TestPressure = 992.0;
         TestBattery = 13.4;
@@ -1389,9 +1365,6 @@ public partial class MainViewModel : ObservableObject
     public void LoadPresetStorm()
     {
         TestTemperature = 24.5;
-        TestTemp2m = 24.5;
-        TestTemp4m = 24.3;
-        TestTemp8m = 24.0;
         TestHumidity = 96.0;
         TestPressure = 968.0;
         TestBattery = 12.2;
@@ -1410,13 +1383,7 @@ public partial class MainViewModel : ObservableObject
             {
                 Timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
                 Temperature = TestTemperature,
-                Temp2m = TestTemperature,
-                Temp4m = TestTemperature,
-                Temp8m = TestTemperature,
                 Humidity = TestHumidity,
-                Rh2m = TestHumidity,
-                Rh4m = TestHumidity,
-                Rh8m = TestHumidity,
                 Pressure = TestPressure,
                 BatteryVoltage = TestBattery,
                 Rainfall = TestRainfall,

@@ -51,11 +51,6 @@ def load_raw_dataset(csv_path: Optional[str] = None) -> pd.DataFrame:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
 
-    if "temp_2m" not in df.columns and "temperature" in df.columns:
-        df["temp_2m"] = df["temperature"]
-    if "rh_2m" not in df.columns and "humidity" in df.columns:
-        df["rh_2m"] = df["humidity"]
-
     return df
 
 
@@ -112,8 +107,5 @@ def preprocess_data(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
     for col in ["temperature", "humidity", "pressure"]:
         clean_df[col] = clean_df[col].interpolate(method="linear", limit=10)
         clean_df[col] = clean_df[col].fillna(clean_df[col].median())
-
-    clean_df["temp_2m"] = clean_df["temperature"]
-    clean_df["rh_2m"] = clean_df["humidity"]
 
     return flagged, clean_df

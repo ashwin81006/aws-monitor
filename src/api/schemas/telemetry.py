@@ -9,25 +9,15 @@ class TelemetryPointInput(BaseModel):
     humidity: Optional[float] = Field(None, description="Relative humidity (%)")
     pressure: Optional[float] = Field(985.0, description="Atmospheric barometric pressure (hPa/mbar)")
     
-    temp_2m: Optional[float] = None
-    temp_4m: Optional[float] = None
-    temp_8m: Optional[float] = None
-    rh_2m: Optional[float] = None
-    rh_4m: Optional[float] = None
-    rh_8m: Optional[float] = None
     battery_voltage: Optional[float] = 12.8
-    wind_speed_10m: Optional[float] = 0.0
+    wind_speed: Optional[float] = 0.0
     rainfall: Optional[float] = 0.0
 
     def get_temperature(self) -> float:
-        if self.temperature is not None:
-            return self.temperature
-        return self.temp_2m if self.temp_2m is not None else 28.5
+        return self.temperature if self.temperature is not None else 28.5
 
     def get_humidity(self) -> float:
-        if self.humidity is not None:
-            return self.humidity
-        return self.rh_2m if self.rh_2m is not None else 65.0
+        return self.humidity if self.humidity is not None else 65.0
 
     def get_pressure(self) -> float:
         return self.pressure if self.pressure is not None else 985.0

@@ -31,13 +31,7 @@ class TelemetryService:
             self._df = pd.DataFrame({
                 "timestamp": dates,
                 "temperature": np.round(t2, 2),
-                "temp_2m": np.round(t2, 2),
-                "temp_4m": np.round(t4, 2),
-                "temp_8m": np.round(t8, 2),
                 "humidity": np.round(rh, 1),
-                "rh_2m": np.round(rh, 1),
-                "rh_4m": np.round(rh + 1.2, 1),
-                "rh_8m": np.round(rh + 2.0, 1),
                 "pressure": np.round(press, 1),
                 "is_anomaly": False,
                 "fused_score": 0.05

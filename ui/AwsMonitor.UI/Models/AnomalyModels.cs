@@ -16,23 +16,6 @@ public class StreamPointRequest
     [JsonPropertyName("pressure")]
     public double Pressure { get; set; } = 998.5;
 
-    [JsonPropertyName("temp_2m")]
-    public double Temp2m { get => Temperature; set => Temperature = value; }
-
-    [JsonPropertyName("temp_4m")]
-    public double Temp4m { get => Temperature; set => Temperature = value; }
-
-    [JsonPropertyName("temp_8m")]
-    public double Temp8m { get => Temperature; set => Temperature = value; }
-
-    [JsonPropertyName("rh_2m")]
-    public double Rh2m { get => Humidity; set => Humidity = value; }
-
-    [JsonPropertyName("rh_4m")]
-    public double Rh4m { get => Humidity; set => Humidity = value; }
-
-    [JsonPropertyName("rh_8m")]
-    public double Rh8m { get => Humidity; set => Humidity = value; }
 
     [JsonPropertyName("battery_voltage")]
     public double BatteryVoltage { get; set; } = 12.8;

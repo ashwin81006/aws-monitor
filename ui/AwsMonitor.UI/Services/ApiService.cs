@@ -177,12 +177,8 @@ public class ApiService : IApiService
             pts.Add(new TelemetryPoint
             {
                 Timestamp = dt.ToString("yyyy-MM-dd HH:mm"),
-                Temp2m = Math.Round(t2, 2),
-                Temp4m = Math.Round(t4, 2),
-                Temp8m = Math.Round(t8, 2),
-                Rh2m = Math.Round(rh2, 1),
-                Rh4m = Math.Round(rh2 + 1.2, 1),
-                Rh8m = Math.Round(rh2 + 2.0, 1),
+                Temperature = Math.Round(t2, 2),
+                Humidity = Math.Round(rh2, 1),
                 Pressure = Math.Round(press, 1),
                 BatteryVoltage = Math.Round(batt, 2),
                 Rainfall = rain,
@@ -238,9 +234,9 @@ public class ApiService : IApiService
                     PeakFusedScore = 0.985,
                     EventClassification = "PROBABLE_SENSOR_FAULT",
                     RootCause = "SENSOR_SPIKE",
-                    AffectedSensors = new List<string> { "temp_4m" },
-                    RuleFlags = new List<string> { "PHYSICAL_TEMP_LIMIT", "VERTICAL_TEMP_LAPSE_GRADIENT" },
-                    Description = "Transient ADC reading jump exceeding sensor gradient consistency across the 4m tower level."
+                    AffectedSensors = new List<string> { "temperature" },
+                    RuleFlags = new List<string> { "PHYSICAL_TEMP_LIMIT", "RATE_OF_CHANGE" },
+                    Description = "Transient ADC reading spike exceeding physical temperature limits."
                 },
                 new()
                 {
@@ -316,9 +312,9 @@ public class ApiService : IApiService
             PeakFusedScore = 0.985,
             Classification = "PROBABLE_SENSOR_FAULT",
             RootCause = "SENSOR_SPIKE",
-            AffectedSensors = new List<string> { "temp_4m" },
-            RuleFlags = new List<string> { "PHYSICAL_TEMP_LIMIT", "VERTICAL_TEMP_LAPSE_GRADIENT" },
-            Description = "Transient ADC reading jump exceeding sensor gradient consistency across the 4m tower level.",
+            AffectedSensors = new List<string> { "temperature" },
+            RuleFlags = new List<string> { "PHYSICAL_TEMP_LIMIT", "RATE_OF_CHANGE" },
+            Description = "Transient ADC reading spike exceeding physical temperature limits.",
             Records = new List<TelemetryPoint>()
         };
     }
@@ -343,9 +339,9 @@ public class ApiService : IApiService
             IsConnected = false;
         }
 
-        bool isSpike = Math.Abs(req.Temp4m - req.Temp2m) > 15.0 || req.Temp4m < -10.0;
+        bool isSpike = Math.Abs(req.Temperature - 28.5) > 20.0 || req.Temperature < -10.0;
         bool isBattery = req.BatteryVoltage < 10.5;
-        bool isHeatwave = req.Temp2m > 44.0 && req.Temp4m > 43.0 && req.Temp8m > 42.0;
+        bool isHeatwave = req.Temperature > 44.0 && req.Humidity < 30.0;
 
         if (isSpike)
         {
@@ -357,10 +353,10 @@ public class ApiService : IApiService
                 Severity = "CRITICAL",
                 Confidence = 0.98,
                 RootCause = "SENSOR_SPIKE",
-                AffectedSensors = new List<string> { "temp_4m" },
-                Explanation = $"Sensor temp_4m jumped to {req.Temp4m:F1}°C conflicting with 2m ({req.Temp2m:F1}°C) and 8m ({req.Temp8m:F1}°C) tower consensus.",
+                AffectedSensors = new List<string> { "temperature" },
+                Explanation = $"Sensor temperature jumped to {req.Temperature:F1}°C violating rate-of-change and physical thresholds.",
                 MlIsolationForestScore = 0.89,
-                RuleFlags = new List<string> { "PHYSICAL_TEMP_LIMIT", "VERTICAL_TEMP_LAPSE_GRADIENT" },
+                RuleFlags = new List<string> { "PHYSICAL_TEMP_LIMIT", "TEMP_RATE_OF_CHANGE" },
                 IsAnomaly = true
             };
         }

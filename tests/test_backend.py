@@ -99,14 +99,8 @@ class TestAWSMonitorBackend(unittest.TestCase):
             "temperature": -35.0,
             "humidity": 65.0,
             "pressure": 998.4,
-            "temp_2m": -35.0,
-            "temp_4m": -35.0,
-            "temp_8m": -35.0,
-            "rh_2m": 65.0,
-            "rh_4m": 65.0,
-            "rh_8m": 65.0,
             "battery_voltage": 12.8,
-            "wind_speed_10m": 2.0,
+            "wind_speed": 2.0,
             "rainfall": 0.0,
         }
         response = self.client.post("/api/v1/telemetry/stream-point", json=payload)
